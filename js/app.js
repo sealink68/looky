@@ -1,0 +1,203 @@
+/* app.js – UI wiring: language, indexes (build on PC / load on iOS), search form, results. */
+"use strict";
+(function (LK) {
+  var C = LK.CFG, $ = function (id) { return document.getElementById(id); };
+  var lang = LK.pref("lang") === "fr" ? "fr" : "nl", IX = {}, HANDLES = {}, FS = typeof window.showDirectoryPicker === "function";
+  function t(k, a) { var s = LK.T[lang][k] || k; return a ? s.replace(/\{(\w+)\}/g, function (_, x) { return a[x] != null ? a[x] : ""; }) : s; }
+  LK.t = t;
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function fmtDate(v) { var d = new Date(v); return isNaN(d) ? "?" : pad(d.getDate()) + "/" + pad(d.getMonth() + 1) + "/" + d.getFullYear() + " " + pad(d.getHours()) + ":" + pad(d.getMinutes()); }
+  function fmtSize(b) { return b < 1024 ? b + " B" : b < 1048576 ? (b / 1024).toFixed(1) + " KB" : (b / 1048576).toFixed(1) + " MB"; }
+  function msg(s, err) { var m = $("msg"); m.textContent = s || ""; m.className = err ? "msg err" : "msg"; }
+
+  /* ---------- language ---------- */
+  function applyLang() {
+    document.documentElement.lang = lang;
+    document.querySelectorAll("[data-t]").forEach(function (e) { e.textContent = t(e.dataset.t); });
+    document.querySelectorAll("[data-ph]").forEach(function (e) { e.placeholder = t(e.dataset.ph); });
+    document.querySelectorAll("#lang button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.l === lang)); });
+    var h = $("helpBody"); h.innerHTML = "";
+    t("helpTxt").forEach(function (l) { var e = document.createElement(l.indexOf("## ") === 0 ? "h3" : "p"); e.textContent = l.replace(/^## /, ""); h.appendChild(e); });
+    $("ftype").value && normType();
+    renderIdx(); if ($("res").dataset.done) run();
+  }
+  function normType() { // keep group labels in the current language
+    var v = $("ftype").value, n = LK.norm(v);
+    ["tAll", "tParam", "tOffice"].forEach(function (k) { if (["nl", "fr"].some(function (l) { return LK.norm(LK.T[l][k]) === n; })) $("ftype").value = t(k); });
+  }
+
+  /* ---------- indexes ---------- */
+  function active() { return Object.keys(IX).filter(function (s) { return LK.pref("off." + s) !== "1"; }).map(function (s) { return IX[s]; }); }
+  async function permOk(h, ask) {
+    if (!h || !h.queryPermission) return false;
+    var o = { mode: "readwrite" };
+    if (await h.queryPermission(o) === "granted") return true;
+    return ask ? (await h.requestPermission(o)) === "granted" : false;
+  }
+  async function renderIdx() {
+    var box = $("idxList"); box.innerHTML = "";
+    var shares = Object.keys(IX).sort();
+    $("idxNone").hidden = shares.length > 0;
+    for (var s of shares) {
+      var ix = IX[s], row = document.createElement("div"); row.className = "idx"; row.dataset.share = s;
+      var lab = document.createElement("label"), cb = document.createElement("input"), sp = document.createElement("span");
+      cb.type = "checkbox"; cb.checked = LK.pref("off." + s) !== "1"; cb.title = t("idxUse");
+      cb.addEventListener("change", (function (s, cb) { return function () { LK.pref("off." + s, cb.checked ? "0" : "1"); refreshLists(); run(); }; })(s, cb));
+      sp.textContent = t("idxInfo", { s: s, n: ix.count != null ? ix.count : ix.entries.length, d: fmtDate(ix.generated) });
+      if (Date.now() - new Date(ix.generated) > 30 * 864e5) { sp.textContent += " – " + t("idxOld"); sp.className = "old"; }
+      lab.appendChild(cb); lab.appendChild(sp); row.appendChild(lab);
+      var h = HANDLES[s];
+      if (FS && h) {
+        var b = document.createElement("button"); b.type = "button"; b.className = "sm upd";
+        var ok = await permOk(h, false);
+        b.textContent = ok ? "🔄" : t("idxRenew", { s: s }); b.title = t("idxUpdate");
+        b.addEventListener("click", (function (h) { return function () { build(h); }; })(h));
+        row.appendChild(b);
+      }
+      var d = document.createElement("button"); d.type = "button"; d.className = "sm del"; d.textContent = "✕"; d.title = t("idxDel");
+      d.addEventListener("click", (function (s) { return async function () { delete IX[s]; await LK.idbDel("ix:" + s); renderIdx(); refreshLists(); run(); }; })(s));
+      row.appendChild(d); box.appendChild(row);
+    }
+  }
+  async function store(ix) {
+    ix.entries.forEach(function (e) { delete e._h; delete e._g; });
+    IX[ix.share] = ix; await LK.idbSet("ix:" + ix.share, ix);
+    renderIdx(); refreshLists(); run();
+  }
+  async function build(h) {
+    try {
+      if (!h) { if (!FS) { msg(t("noFs"), true); return; } h = await window.showDirectoryPicker({ id: "looky", mode: "readwrite" }); }
+      if (!(await permOk(h, true))) { msg(t("idxErr", { e: "permission" }), true); return; }
+      HANDLES[h.name] = h; await LK.hSet(h.name, h);
+      msg(t("idxBusy", { n: 0 }));
+      var ix = await LK.scan(h, function (n) { msg(t("idxBusy", { n: n })); });
+      try { await LK.writeIndex(h, ix); msg(t("idxDone", { s: h.name, f: C.INDEX, n: ix.count })); }
+      catch (e) { msg(t("idxWriteErr", { e: e.message || e }), true); }
+      await store(ix);
+    } catch (e) { if (e && e.name === "AbortError") return; msg(t("idxErr", { e: (e && e.message) || e }), true); }
+  }
+  function loadFiles(files) {
+    Array.prototype.forEach.call(files, function (f) {
+      f.text().then(function (txt) {
+        var o; try { o = JSON.parse(txt); } catch (e) { o = null; }
+        if (!LK.validIndex(o)) { msg(t("idxBad"), true); return; }
+        o.count = o.entries.length;
+        return store(o).then(function () { msg(t("idxLoaded", { s: o.share, n: o.count, d: fmtDate(o.generated) })); });
+      });
+    });
+  }
+
+  /* ---------- form ---------- */
+  /* families/sub-models: ESC_tool list + values learned from the active indexes (e.g. ESA families) */
+  var LEARN = { fam: [], sub: {} };
+  function learn() {
+    var fs = {}, ss = {};
+    Object.keys(LK.MODELS).forEach(function (f) { fs[LK.norm(f)] = 1; LK.MODELS[f].forEach(function (m) { ss[LK.norm(f) + "|" + LK.norm(m.id)] = 1; }); });
+    LEARN = { fam: [], sub: {} };
+    active().forEach(function (ix) { ix.entries.forEach(function (e) {
+      if (!e.family) return; var nf = LK.norm(e.family);
+      if (!fs[nf]) { fs[nf] = 1; LEARN.fam.push(e.family); }
+      if (e.submodel && !ss[nf + "|" + LK.norm(e.submodel)]) { ss[nf + "|" + LK.norm(e.submodel)] = 1; (LEARN.sub[e.family] = LEARN.sub[e.family] || []).push(e.submodel); }
+    }); });
+    LEARN.fam.sort();
+  }
+  function famItems() { return Object.keys(LK.MODELS).concat(LEARN.fam).map(function (f) { return { v: f }; }); }
+  function subItems() {
+    var f = LK.norm($("family").value).trim(), out = [];
+    Object.keys(LK.MODELS).forEach(function (k) {
+      if (f && LK.norm(k) !== f) return;
+      LK.MODELS[k].forEach(function (m) { out.push({ v: m.id, l: (f ? "" : k + " – ") + ((m.desc && m.desc[lang]) || "") }); });
+    });
+    Object.keys(LEARN.sub).forEach(function (k) {
+      if (f && LK.norm(k) !== f) return;
+      LEARN.sub[k].sort().forEach(function (v) { out.push({ v: v, l: f ? "" : k }); });
+    });
+    return out;
+  }
+  var DOS = [];
+  function refreshLists() { // dossier numbers seen in the active indexes (filtered by family)
+    learn(); var seen = {}, f = LK.norm($("family").value).trim(); DOS = [];
+    active().forEach(function (ix) { ix.entries.forEach(function (e) {
+      if (e.dossier && !seen[e.dossier] && (!f || LK.norm(e.family) === f)) { seen[e.dossier] = 1; DOS.push({ v: e.dossier, l: e.family || "" }); }
+    }); });
+    DOS.sort(function (a, b) { return a.v < b.v ? -1 : 1; });
+  }
+  function typeItems() {
+    return [{ v: t("tAll") }, { v: t("tParam"), l: LK.EXT.param.join(" ") }, { v: t("tOffice"), l: LK.EXT.office.join(" ") }];
+  }
+  var timer = 0;
+  function later() { clearTimeout(timer); timer = setTimeout(run, 150); }
+  function q() { return { family: $("family").value, submodel: $("submodel").value, dossier: $("dossier").value, customer: $("customer").value, type: $("ftype").value }; }
+  function run() {
+    var res = $("res"), list = active(), qq = q();
+    res.dataset.done = "1"; res.innerHTML = "";
+    if (!list.length) { $("count").textContent = ""; return; }
+    var r = LK.search(list, qq), max = C.MAX_RESULTS;
+    $("count").textContent = r.length > max ? t("resultsMax", { n: r.length, m: max }) : r.length ? t("results", { n: r.length }) : t("noRes");
+    r.slice(0, max).forEach(function (e) {
+      var li = document.createElement("li"); li.className = "r";
+      li.innerHTML = '<div class="rn"></div><div class="rp"></div><div class="rm"></div><div class="ra"></div>';
+      li.children[0].textContent = e.name;
+      li.children[1].textContent = e.share + "/" + e.path;
+      li.children[2].textContent = fmtDate(e.lastModified) + " · " + fmtSize(e.size || 0) + [e.family, e.submodel, e.dossier].filter(Boolean).map(function (x) { return " · " + x; }).join("");
+      var a = li.children[3];
+      if (FS && HANDLES[e.share]) {
+        a.appendChild(btn(t("open"), "open", function () { openFile(e, false); }));
+        a.appendChild(btn(t("download"), "dl", function () { openFile(e, true); }));
+      }
+      a.appendChild(btn(t("copy"), "cp", function (b) { copy(e.share + "/" + e.path, b); }));
+      res.appendChild(li);
+    });
+  }
+  function btn(txt, cls, fn) { var b = document.createElement("button"); b.type = "button"; b.className = "sm " + cls; b.textContent = txt; b.addEventListener("click", function () { fn(b); }); return b; }
+  function copy(s, b) {
+    var done = function () { var o = b.textContent; b.textContent = t("copied"); setTimeout(function () { b.textContent = o; }, 1500); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(s).then(done, fallback); else fallback();
+    function fallback() { var ta = document.createElement("textarea"); ta.value = s; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); } catch (x) {} ta.remove(); done(); }
+    window.__copied = s;
+  }
+  async function openFile(e, dl) {
+    try {
+      var h = HANDLES[e.share]; if (!(await permOk(h, true))) return;
+      var seg = e.path.split("/"), d = h;
+      for (var i = 0; i < seg.length - 1; i++) d = await d.getDirectoryHandle(seg[i]);
+      var f = await (await d.getFileHandle(seg[seg.length - 1])).getFile(), url = URL.createObjectURL(f);
+      window.__opened = e.path;
+      if (dl) { var a = document.createElement("a"); a.href = url; a.download = e.name; document.body.appendChild(a); a.click(); a.remove(); }
+      else window.open(url, "_blank");
+      setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+    } catch (x) { msg(t("notFound"), true); }
+  }
+
+  /* ---------- init ---------- */
+  async function init() {
+    document.querySelectorAll("#lang button").forEach(function (b) { b.addEventListener("click", function () { lang = b.dataset.l; LK.pref("lang", lang); applyLang(); }); });
+    $("btnUpdate").hidden = !FS;
+    $("btnUpdate").addEventListener("click", function () { build(null); });
+    $("btnLoad").addEventListener("click", function () { $("file").click(); });
+    $("file").addEventListener("change", function () { loadFiles(this.files); this.value = ""; });
+    $("btnHelp").addEventListener("click", function () { $("help").hidden = false; });
+    $("helpClose").addEventListener("click", function () { $("help").hidden = true; });
+    $("clear").addEventListener("click", function () { ["family", "submodel", "dossier", "customer"].forEach(function (i) { $(i).value = ""; }); $("ftype").value = t("tAll"); refreshLists(); run(); });
+    $("f").addEventListener("submit", function (e) { e.preventDefault(); document.activeElement && document.activeElement.blur(); run(); });
+    LK.combo($("family"), famItems, function (v, typing) { if (!typing) { $("submodel").value = ""; } refreshLists(); later(); });
+    LK.combo($("submodel"), subItems, later);
+    LK.combo($("dossier"), function () { return DOS; }, later);
+    LK.combo($("customer"), function () { return []; }, later);
+    LK.combo($("ftype"), typeItems, later);
+    $("ftype").value = t("tAll");
+    function net() { $("off").hidden = navigator.onLine; }
+    window.addEventListener("online", net); window.addEventListener("offline", net); net();
+    try {
+      var keys = await LK.idbKeys();
+      for (var k of keys) {
+        if (k.indexOf("ix:") === 0) { var o = await LK.idbGet(k); if (LK.validIndex(o)) IX[o.share] = o; }
+      }
+    } catch (e) {}
+    for (var s of C.SHARES.concat(Object.keys(IX))) { try { var h = await LK.hGet(s); if (h) HANDLES[s] = h; } catch (e) {} }
+    refreshLists(); applyLang(); run();
+    document.body.dataset.ready = "1";
+    if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(function () {});
+  }
+  document.addEventListener("DOMContentLoaded", init);
+})(window.LK);

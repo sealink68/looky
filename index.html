@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Looky</title>
+<meta name="theme-color" content="#4f46e5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Looky">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.ico">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<header>
+  <img src="icons/kaba-logo.svg" alt="dormakaba" class="logo">
+  <div class="ttl"><h1 data-t="title">Looky</h1><small data-t="sub"></small></div>
+  <span id="off" class="off" data-t="offline" hidden></span>
+  <div id="lang" class="seg"><button type="button" data-l="nl">NL</button><button type="button" data-l="fr">FR</button></div>
+  <button type="button" id="btnHelp" class="sm" data-t="help"></button>
+</header>
+<main>
+  <section class="card" id="idx">
+    <h2 data-t="idxH"></h2>
+    <p id="idxNone" data-t="idxNone"></p>
+    <div id="idxList"></div>
+    <div class="row">
+      <button type="button" id="btnUpdate" data-t="idxUpdate"></button>
+      <button type="button" id="btnLoad" data-t="idxLoad"></button>
+      <input type="file" id="file" accept=".json,application/json" multiple hidden>
+    </div>
+    <p id="msg" class="msg" role="status"></p>
+  </section>
+  <form class="card" id="f" autocomplete="off">
+    <div class="grid">
+      <label><span data-t="family"></span><div class="cb"><input id="family" data-ph="phFamily"></div></label>
+      <label><span data-t="submodel"></span><div class="cb"><input id="submodel" data-ph="phSub"></div></label>
+      <label><span data-t="dossier"></span><div class="cb"><input id="dossier" data-ph="phDossier" inputmode="text"></div></label>
+      <label><span data-t="customer"></span><div class="cb"><input id="customer" data-ph="phCustomer" type="search"></div></label>
+      <label><span data-t="ftype"></span><div class="cb"><input id="ftype" data-ph="phType"></div></label>
+    </div>
+    <div class="row"><button type="submit" data-t="search"></button><button type="button" id="clear" class="sec" data-t="clear"></button></div>
+  </form>
+  <section class="card"><p id="count"></p><ul id="res"></ul></section>
+</main>
+<div id="help" class="modal" hidden><div class="mbox"><button type="button" id="helpClose" class="sm" data-t="close"></button><div id="helpBody"></div></div></div>
+<script src="js/config.js"></script>
+<script src="js/families.js"></script>
+<script src="js/store.js"></script>
+<script src="js/core.js"></script>
+<script src="js/combo.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
