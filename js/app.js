@@ -101,7 +101,15 @@
     }); });
     LEARN.fam.sort();
   }
-  function famItems() { return Object.keys(LK.MODELS).concat(LEARN.fam).map(function (f) { return { v: f }; }); }
+  /* families in group order (Schuifdeuren, Draaideuren, …), label = group name, so typing "schuif"/"coulis" lists them */
+  function famItems() {
+    var G = LK.FAMILY_GROUP || {}, gl = {}, out = [];
+    (LK.GROUPS || []).forEach(function (g) { gl[g.id] = g[lang] || g.nl; });
+    (LK.GROUPS || [{ id: "other" }]).forEach(function (g) {
+      Object.keys(LK.MODELS).concat(LEARN.fam).forEach(function (f) { if ((G[f] || "other") === g.id) out.push({ v: f, l: gl[g.id] || "" }); });
+    });
+    return out;
+  }
   function subItems() {
     var f = LK.norm($("family").value).trim(), out = [];
     Object.keys(LK.MODELS).forEach(function (k) {

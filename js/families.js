@@ -1,4 +1,4 @@
-/* families.js – product families + sub-models, copied from ESC_tool js/models.js (OE.MODELS; ids + nl/fr desc).
+/* families.js – product families + sub-models. Part 1 copied from ESC_tool js/models.js (OE.MODELS; ids + nl/fr desc).
    Regenerate when ESC_tool models change; same shape so Looky can be merged into ESC_tool. */
 "use strict";
 window.LK = window.LK || {};
@@ -517,3 +517,61 @@ LK.MODELS = {
   }
  ]
 };
+
+/* ---- dormakaba door systems (added 2026-10-25) ----
+   ESC_tool families above are kept unchanged (ids compatible). Families/sub-models below are ONLY names found on
+   dormakaba.com product pages (product sitemaps https://www.dormakaba.com/<country>/products-sitemap.xml, read 2026-10-25).
+   Not found on dormakaba.com and therefore NOT listed: ES 75, ES 200 Easy, ES 200 2D, ED 100 variants other than A/LE,
+   FFT / FFT FLEX (folding), RD. Add them here once verified.
+   Sources (… = /offering/producten/automatische-deuren-en-beveiligingsdeuren or the country equivalent):
+     ES PROLINE:    be-nl …/automatische-schuifdeuraandrijvingen/aandrijving-voor-automatische-schuifdeuren-es-proline--dk_818
+     ES PROLINE:    be-nl …/es-proline-t--dk_819
+     ES PROLINE:    gb-en …/sliding-door-operators/automatic-sliding-door-operator-es-250-pro-easy--dk_58100, …-es-250-pro-t-easy--dk_58101, …-es-400-pro--dk_818, …-es-400-pro-t--dk_819
+     ES 200:        nl-nl …/aandrijving-voor-automatische-schuifdeuren-es-200--do_172
+     ES 200:        gb-en …/sliding-door-operators/es-200-t--do_2900
+     ES 400:        be-nl …/automatische-schuifdeuraandrijvingen/es-400--do_183
+     ES 400:        at-de …/schiebetuerantriebe/es-410--do_2902, es-420--do_2903
+     CS 80 MAGNEO:  be-nl …/automatische-schuifdeuraandrijvingen/cs-80-magneo--do_166
+     CS 80 MAGNEO:  gb-en …/cs-80-magneo-sync--dk_392
+     ST:            be-nl …/automatische-schuifdeuren/ (st-flex…dk_813, st-flex-green…dk_814, st-flex-secure--do_263, st-pro-green…dk_811/dk_812/dk_23101, st-manet…dk_816)
+     ST:            de-de …/st-pure-mit-es-proline--dk_815, …/st-flex-green-dfc--do_41384
+     ST:            ch-de …/st-fire-brandschutz-schiebetuer…dk_124100-124103
+     ST:            gb-en …/automatic-sliding-doors/st-ap-system--do_14027, st-s-system--do_13992
+     TST:           be-nl …/automatische-telescopische-schuifdeur-tst-flex-met-es-proline-aandrijving--dk_817
+     TST:           de-de …/tst-flex-green-mit-es-proline--dk_45100
+     SST:           be-nl …/sst-flex-green-automatische-schuifdeur-met-paniekfunctie--dk_45101
+     SST:           gb-en …/sst-flex--do_22615
+     BST:           be-nl …/automatische-schuifdeuren/bst-fbst--do_2898
+     Hermetische schuifdeuren: be-nl …/hermetische-automatische-deuren/hermetische-automatische-schuifdeuren--dk_810
+     ESA:           us-en …/automatic-sliding-doors-icu-doors/esa100--do_1842 … esa500--do_1865, esa-telescopic--do_1854
+     ED:            be-nl …/draaideurautomaten/ed-100-ed-250-draaideurautomaten--do_342
+     ED:            gb-en …/ed-100250-a--do_15158, ed-100250-le--do_15153
+     PORTEO:        au-en …/entrance-systems/swing-door-operators/porteo--do_2725 (also fr-fr)
+     EasyAssist:    nl-nl/de-de …/easyassist-deurassistent--dk_86102
+     EasyAssist:    us-en …/ed20le-easyassist--dk_95100
+     KTV:           be-nl …/carrouseldeuren-of-draaideuren/ktv-3-ktv-4--do_424, ktv-atrium-flex--do_416
+     KTV:           au-en …/revolving-doors/ktv-atrium-plus--do_41247
+     KTV:           at-de …/ktv-secure--do_398, karusselltueren-ktv-austria-edition--dk_17100
+     KTC:           be-nl …/carrouseldeuren-of-draaideuren/ktc-2--do_381
+     KTC:           gb-en …/ktc-3-ktc-4--do_432
+     KT FLEX:       gb-en …/kt-flex-direct-upgrade-kit--dk_108100 (be-fr: kit-de-modernisation-kt-flex-drive)
+     Crane:         us-en …/entrance-systems-legacy-products/crane-1000-series--do_626, crane-1000-a-series--do_631, crane-2000…4000-series
+     TS:            be-nl …/deurtechniek/deurdrangers/ (ts-71--do_305 … ts-99-fl--do_223)
+     TS:            de-de …/tuerschliesser-ts-92-basic--do_41887, ts-93-basic--do_40021
+     ITS:           be-nl …/deurdrangers/its-96-bca--dk_41100, its-96-fl…do_2863, its-home--dk_94102
+     ITS:           nl-nl …/its-96--do_88
+     RTS:           be-nl …/deurdrangers/rts-85-kozijndorpelveer--do_335
+     BTS:           be-nl …/deurdrangers/bts-75-v-vloerveer--do_293, bts-80-vloerveersysteem--do_286, bts-80-system-vvf…dk_105100, bts-84-vloerveer--do_407
+     HSW:           ch-de …/glasschiebewaende/hsw-em--do_18990
+     HSW:           us-en …/movable-glass-partitions/hsw-fsw--do_2308
+     MotionIQ:      be-nl …/draaideurautomaten/motioniq-slimme-deurbediening--dk_61100
+     ESC families Kerberos/Kentaur/Charon/Argus/Geryon/Orthos: be-nl …/tourniquets-en-draaikruizen, sensorsluizen-en-sensorpoorten,
+       beveiligingscarrouseldeuren-en-persoonssluizen, halfhoge-zwenkdeuren (kerberos--ka_114687, kentaur--ka_118805, charon--ka_115191/ka_118791,
+       argus--dk_363/dk_33100/dk_101100-101103/dk_113101, geryon--ka_117967, orthos--ka_117975). */
+LK.GROUPS = [{"id": "sliding", "nl": "Schuifdeuren", "fr": "Portes coulissantes"}, {"id": "swing", "nl": "Draaideuren (draaivleugel)", "fr": "Portes battantes"}, {"id": "revolving", "nl": "Carrouseldeuren", "fr": "Portes tambour"}, {"id": "folding", "nl": "Vouwdeuren", "fr": "Portes pliantes"}, {"id": "access", "nl": "Toegangscontrole / sensorbarrières", "fr": "Contrôle d'accès / couloirs de détection"}, {"id": "closer", "nl": "Deurdrangers", "fr": "Ferme-portes"}, {"id": "floor", "nl": "Vloerveren", "fr": "Pivots de sol / freins"}, {"id": "other", "nl": "Overig", "fr": "Autres"}];
+(function () {
+  var DK = {"ES PROLINE": [{"id": "ES PROLINE"}, {"id": "ES PROLINE T"}, {"id": "ES 250 PRO EASY"}, {"id": "ES 250 PRO T EASY"}, {"id": "ES 400 PRO"}, {"id": "ES 400 PRO T"}], "ES 200": [{"id": "ES 200"}, {"id": "ES 200 T"}], "ES 400": [{"id": "ES 400"}, {"id": "ES 410"}, {"id": "ES 420"}], "CS 80 MAGNEO": [{"id": "CS 80 MAGNEO"}, {"id": "CS 80 MAGNEO SYNC"}], "ST": [{"id": "ST FLEX"}, {"id": "ST FLEX GREEN"}, {"id": "ST FLEX GREEN DFC"}, {"id": "ST FLEX SECURE"}, {"id": "ST PRO GREEN"}, {"id": "ST PRO GREEN RC2"}, {"id": "ST PRO GREEN RC3"}, {"id": "ST MANET"}, {"id": "ST PURE"}, {"id": "ST FIRE"}, {"id": "ST AP System"}, {"id": "ST S System"}], "TST": [{"id": "TST FLEX"}, {"id": "TST FLEX GREEN"}], "SST": [{"id": "SST FLEX"}, {"id": "SST FLEX GREEN"}], "BST": [{"id": "BST"}, {"id": "FBST"}], "Hermetische schuifdeuren": [], "ESA": [{"id": "ESA100"}, {"id": "ESA200"}, {"id": "ESA300"}, {"id": "ESA400"}, {"id": "ESA500"}, {"id": "ESA Telescopic"}], "ED": [{"id": "ED 100"}, {"id": "ED 250"}, {"id": "ED 100/250 A"}, {"id": "ED 100/250 LE"}], "PORTEO": [{"id": "PORTEO"}], "EasyAssist": [{"id": "EasyAssist"}, {"id": "ED20LE"}], "KTV": [{"id": "KTV 3"}, {"id": "KTV 4"}, {"id": "KTV ATRIUM FLEX"}, {"id": "KTV ATRIUM PLUS"}, {"id": "KTV Secure"}, {"id": "KTV Austria Edition"}], "KTC": [{"id": "KTC 2"}, {"id": "KTC 3"}, {"id": "KTC 4"}], "KT FLEX": [{"id": "KT FLEX Direct Upgrade Kit"}], "Crane": [{"id": "Crane 1000"}, {"id": "Crane 1000 A"}, {"id": "Crane 2000"}, {"id": "Crane 3000"}, {"id": "Crane 4000"}], "TS": [{"id": "TS 71"}, {"id": "TS 72"}, {"id": "TS 73 V"}, {"id": "TS 73 EMF"}, {"id": "TS 83"}, {"id": "TS 90 Impulse"}, {"id": "TS 91"}, {"id": "TS 92"}, {"id": "TS 92 Basic"}, {"id": "TS 92 XEA"}, {"id": "TS 93"}, {"id": "TS 93 Basic"}, {"id": "TS 97"}, {"id": "TS 97 FL"}, {"id": "TS 98 XEA"}, {"id": "TS 99 FL"}], "ITS": [{"id": "ITS 96"}, {"id": "ITS 96 FL"}, {"id": "ITS 96 BC"}, {"id": "ITS Home"}], "RTS": [{"id": "RTS 85"}], "BTS": [{"id": "BTS 75 V"}, {"id": "BTS 80"}, {"id": "BTS 80 System VVF"}, {"id": "BTS 84"}], "HSW": [{"id": "HSW-EM"}, {"id": "HSW-FSW"}], "MotionIQ": [{"id": "MotionIQ"}]};
+  Object.keys(DK).forEach(function (f) { if (!LK.MODELS[f]) LK.MODELS[f] = DK[f]; });
+})();
+/* family -> group id (families not listed here, e.g. learned from an index, go to 'other') */
+LK.FAMILY_GROUP = {"Kerberos": "access", "Kentaur": "access", "Charon": "access", "Argus": "access", "Geryon": "access", "Orthos": "access", "CRP": "access", "PGB": "access", "ES PROLINE": "sliding", "ES 200": "sliding", "ES 400": "sliding", "CS 80 MAGNEO": "sliding", "ST": "sliding", "TST": "sliding", "SST": "sliding", "BST": "sliding", "Hermetische schuifdeuren": "sliding", "ESA": "sliding", "ED": "swing", "PORTEO": "swing", "EasyAssist": "swing", "KTV": "revolving", "KTC": "revolving", "KT FLEX": "revolving", "Crane": "revolving", "TS": "closer", "ITS": "closer", "RTS": "closer", "BTS": "floor", "HSW": "other", "MotionIQ": "other"};

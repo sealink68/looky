@@ -31,8 +31,20 @@
   };
 
   /* known families/submodels, normalised */
-  var FAM = {}, SUB = {};
-  Object.keys(LK.MODELS).forEach(function (f) { FAM[LK.norm(f)] = f; LK.MODELS[f].forEach(function (m) { var k = LK.norm(m.id); SUB[k] = SUB[k.replace(/[\s\/]+/g, "_")] = { f: f, id: m.id }; }); });
+  var FAM = {}, SUB = {}, SUBS = [];
+  function sp(s) { return LK.norm(s).replace(/[\/_\-\s.]+/g, " ").trim(); } // "ES_200-T" -> "es 200 t"
+  LK.sp = sp;
+  Object.keys(LK.MODELS).forEach(function (f) {
+    FAM[LK.norm(f)] = FAM[sp(f)] = FAM[sp(f).replace(/ /g, "_")] = FAM[sp(f).replace(/ /g, "")] = f;
+    LK.MODELS[f].forEach(function (m) {
+      var k = LK.norm(m.id), o = { f: f, id: m.id }; SUB[k] = SUB[k.replace(/[\s\/]+/g, "_")] = SUB[sp(m.id)] = o;
+      SUBS.push({ k: " " + sp(m.id) + " ", g: " " + sp(m.id).replace(/ /g, "") + " ", o: o });
+    });
+  });
+  SUBS.sort(function (a, b) { return b.k.length - a.k.length; }); // longest first: "TS 92 XEA" before "TS 92"
+  /* whole-word match of a (spaced) phrase in a spaced haystack, also glued ("es200") */
+  function word(h, q) { q = sp(q); return !!q && (h.indexOf(" " + q + " ") >= 0 || h.indexOf(" " + q.replace(/ /g, "") + " ") >= 0); }
+  LK.word = word;
   var NAME_RE = /^(.+?)_(.+)_([^_]+)_(\d{4}-\d\d-\d\d_\d{4})(\.[^.]+)?$/; // ESC_tool: <Family>_<SubModel>_<Dossier>_<stamp>.<ext>
   var INFO_RE = /^(.+?)_(.+)_([^_]+)_info\.pdf$/i;
 
@@ -57,9 +69,12 @@
       if (!r.dossier) r.dossier = m[3];
     }
     if (!r.family) for (i = 0; i < dirs; i++) if (FAM[LK.norm(seg[i])]) { r.family = FAM[LK.norm(seg[i])]; break; }
-    if (!r.submodel) { // any known sub-model id as a token in the path
-      var toks = LK.norm(path).split(/[\/_\s]+|\.(?=[^.]*$)/);
-      for (i = 0; i < toks.length; i++) if (SUB[toks[i]] && (!r.family || SUB[toks[i]].f === r.family)) { r.submodel = SUB[toks[i]].id; if (!r.family) r.family = SUB[toks[i]].f; break; }
+    if (!r.submodel) { // any known sub-model id as whole words in the path ("ES 200", "ES_200", "es200")
+      var h = " " + sp(path) + " ";
+      for (i = 0; i < SUBS.length; i++) {
+        var x = SUBS[i];
+        if ((h.indexOf(x.k) >= 0 || h.indexOf(x.g) >= 0) && (!r.family || x.o.f === r.family)) { r.submodel = x.o.id; if (!r.family) r.family = x.o.f; break; }
+      }
     }
     return r;
   };
@@ -107,8 +122,9 @@
       ix.entries.forEach(function (e) {
         if (exts && exts.indexOf((e.ext || LK.ext(e.name)).toLowerCase()) < 0) return;
         var hay = e._h || (e._h = LK.norm(e.path)), hayGlued = e._g || (e._g = hay.replace(/[\s_\-]+/g, ""));
-        if (fam && LK.norm(e.family) !== fam && hay.indexOf(fam) < 0) return;
-        if (sub && LK.norm(e.submodel) !== sub && hay.indexOf(sub) < 0) return;
+        var hs = e._s || (e._s = " " + sp(e.path) + " ");
+        if (fam && sp(e.family) !== sp(fam) && !word(hs, fam)) return;
+        if (sub && sp(e.submodel) !== sp(sub) && !word(hs, sub)) return;
         if (dos && LK.norm(e.dossier).indexOf(dos) < 0 && hay.indexOf(dos) < 0) return;
         for (var i = 0; i < terms.length; i++) if (!terms[i].some(function (v) { return hay.indexOf(v) >= 0 || hayGlued.indexOf(v) >= 0; })) return;
         out.push(Object.assign({ share: ix.share }, e));
