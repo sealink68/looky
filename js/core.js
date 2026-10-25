@@ -81,6 +81,17 @@
     if (fam) for (i = 0; i < specific.length; i++) if (key(specific[i].f) === key(fam)) return specific[i].v;
     return loose || (specific.length === 1 ? specific[0].v : null);
   };
+  /* query contains a model that has default extensions (TPB-M04, "tpb m04", "kerberos tpb-m04") */
+  LK.modelExtFromQuery = function (query) {
+    var best = null, bestLen = 0, keys = Object.keys(LK.MODEL_EXT || {}), i;
+    for (i = 0; i < keys.length; i++) {
+      var ms = keys[i].split("/").pop();
+      if (!hasPhrase(String(query || ""), ms)) continue;
+      if (key(ms).length < bestLen) continue;
+      best = LK.modelExt(ms, null); bestLen = key(ms).length;
+    }
+    return best;
+  };
   var NAME_RE = /^(.+?)_(.+)_([^_]+)_(\d{4}-\d\d-\d\d_\d{4})(\.[^.]+)?$/; // ESC_tool: <Family>_<SubModel>_<Dossier>_<stamp>.<ext>
   var INFO_RE = /^(.+?)_(.+)_([^_]+)_info\.pdf$/i;
 
@@ -186,19 +197,27 @@
     return n.split(/[\s,;]+/).filter(Boolean).map(function (x) { return x.charAt(0) === "." ? x : "." + x; });
   };
 
-  /* q = {family, submodel, dossier, customer, type|exts}; indexes = [index]; returns entries (with .share) newest first.
-     exts null/omitted = every extension. Family and sub-model ignore case, spaces, dashes and underscores. */
+  /* one free-text query: every word (glossary-aware) must match family, sub-model, dossier or path.
+     Also accepts the older {family, submodel, dossier, customer} fields by joining them.
+     exts null = every extension. Matching ignores case, spaces, dashes and underscores. */
+  function textHit(e, variant) {
+    if (!variant) return false;
+    if (e.family && (hasPhrase(e.family, variant) || key(e.family) === key(variant))) return true;
+    if (e.submodel && (hasPhrase(e.submodel, variant) || key(e.submodel) === key(variant))) return true;
+    if (e.dossier && LK.norm(e.dossier).indexOf(LK.norm(variant).replace(/\s+/g, "")) >= 0) return true;
+    var blob = (e.path || "") + " " + (e.name || "");
+    if (hasPhrase(blob, variant)) return true;
+    /* longer words may sit inside a token ("deur" in "schuifdeur"); short codes stay whole-word ("ts" ≠ FTS) */
+    var v = LK.norm(variant).replace(/[\s_\-]+/g, ""), hay = LK.norm(blob).replace(/[\s_\-]+/g, "");
+    return v.length >= 4 && hay.indexOf(v) >= 0;
+  }
   LK.search = function (indexes, q) {
-    var fam = q.family || "", sub = q.submodel || "", dos = LK.norm(q.dossier).trim(),
-      terms = LK.terms(q.customer), exts = q.exts != null ? q.exts : LK.typeExts(q.type || ""), out = [];
+    var text = q.text != null ? q.text : [q.family, q.submodel, q.dossier, q.customer].filter(Boolean).join(" ");
+    var groups = LK.terms(text), exts = q.exts != null ? q.exts : LK.typeExts(q.type || ""), out = [];
     indexes.forEach(function (ix) {
       ix.entries.forEach(function (e) {
         if (exts && exts.indexOf((e.ext || LK.ext(e.name)).toLowerCase()) < 0) return;
-        var hay = e._h || (e._h = LK.norm(e.path)), hayGlued = e._g || (e._g = hay.replace(/[\s_\-]+/g, ""));
-        if (fam && key(e.family) !== key(fam) && !hasPhrase(e.path, fam)) return;
-        if (sub && key(e.submodel) !== key(sub) && !hasPhrase(e.path, sub)) return;
-        if (dos && LK.norm(e.dossier).indexOf(dos) < 0 && hay.indexOf(dos) < 0) return;
-        for (var i = 0; i < terms.length; i++) if (!terms[i].some(function (v) { return hay.indexOf(v) >= 0 || hayGlued.indexOf(v) >= 0; })) return;
+        for (var i = 0; i < groups.length; i++) if (!groups[i].some(function (v) { return textHit(e, v); })) return;
         out.push(Object.assign({ share: ix.share }, e));
       });
     });

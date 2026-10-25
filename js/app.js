@@ -37,7 +37,7 @@
       var ix = IX[s], row = document.createElement("div"); row.className = "idx"; row.dataset.share = s;
       var lab = document.createElement("label"), cb = document.createElement("input"), sp = document.createElement("span");
       cb.type = "checkbox"; cb.checked = LK.pref("off." + s) !== "1"; cb.title = t("idxUse");
-      cb.addEventListener("change", (function (s, cb) { return function () { LK.pref("off." + s, cb.checked ? "0" : "1"); refreshLists(); run(); }; })(s, cb));
+      cb.addEventListener("change", (function (s, cb) { return function () { LK.pref("off." + s, cb.checked ? "0" : "1"); run(); }; })(s, cb));
       sp.textContent = t("idxInfo", { s: s, n: ix.count != null ? ix.count : ix.entries.length, d: fmtDate(ix.generated) });
       if (Date.now() - new Date(ix.generated) > 30 * 864e5) { sp.textContent += " – " + t("idxOld"); sp.className = "old"; }
       lab.appendChild(cb); lab.appendChild(sp); row.appendChild(lab);
@@ -50,14 +50,14 @@
         row.appendChild(b);
       }
       var d = document.createElement("button"); d.type = "button"; d.className = "sm del"; d.textContent = "✕"; d.title = t("idxDel");
-      d.addEventListener("click", (function (s) { return async function () { delete IX[s]; await LK.idbDel("ix:" + s); renderIdx(); refreshLists(); run(); }; })(s));
+      d.addEventListener("click", (function (s) { return async function () { delete IX[s]; await LK.idbDel("ix:" + s); renderIdx(); run(); }; })(s));
       row.appendChild(d); box.appendChild(row);
     }
   }
   async function store(ix) {
     ix.entries.forEach(function (e) { delete e._h; delete e._g; });
     IX[ix.share] = ix; await LK.idbSet("ix:" + ix.share, ix);
-    renderIdx(); refreshLists(); run();
+    renderIdx(); run();
   }
   async function build(h) {
     try {
@@ -84,7 +84,7 @@
   }
 
   /* ---------- form ---------- */
-  /* Dropdowns list only families/sub-models present in the active indexes. Typing a name that is not listed still searches. */
+  /* Suggestions list only families/sub-models present in the active indexes. */
   function canonFamily(name) {
     var k = LK.key(name), hit = null;
     Object.keys(LK.MODELS).forEach(function (f) { if (LK.key(f) === k) hit = f; });
@@ -116,29 +116,18 @@
     return list.map(function (f) { return { v: f, l: (gl[G[f] || "other"] || {}).l || "" }; });
   }
   function subItems() {
-    var f = LK.key($("family").value), seen = {}, out = [];
+    var seen = {}, out = [];
     active().forEach(function (ix) { ix.entries.forEach(function (e) {
       if (!e.submodel) return;
-      var cf = canonFamily(e.family || "");
-      if (f && LK.key(cf) !== f) return;
-      var id = canonSub(cf, e.submodel), sk = LK.key(cf) + "|" + LK.key(id);
+      var cf = canonFamily(e.family || ""), id = canonSub(cf, e.submodel), sk = LK.key(id);
       if (seen[sk]) return;
       seen[sk] = 1;
-      var desc = "";
-      (LK.MODELS[cf] || []).some(function (m) { if (m.id === id && m.desc) { desc = m.desc[lang] || ""; return true; } });
-      out.push({ v: id, l: (f ? "" : cf + (desc ? " – " : "")) + desc });
+      out.push({ v: id, l: cf });
     }); });
     out.sort(function (a, b) { return a.v < b.v ? -1 : 1; });
     return out;
   }
-  var DOS = [];
-  function refreshLists() { // dossier numbers seen in the active indexes (filtered by family)
-    var seen = {}, f = LK.key($("family").value); DOS = [];
-    active().forEach(function (ix) { ix.entries.forEach(function (e) {
-      if (e.dossier && !seen[e.dossier] && (!f || LK.key(e.family) === f)) { seen[e.dossier] = 1; DOS.push({ v: e.dossier, l: e.family || "" }); }
-    }); });
-    DOS.sort(function (a, b) { return a.v < b.v ? -1 : 1; });
-  }
+  function suggestItems() { return famItems().concat(subItems()); }
   function allExts() {
     var s = [], seen = {};
     LK.EXT.param.concat(LK.EXT.office).forEach(function (x) { x = x.toLowerCase(); if (!seen[x]) { seen[x] = 1; s.push(x); } });
@@ -159,28 +148,31 @@
     $("extOffice").setAttribute("aria-pressed", String(same(LK.EXT.office)));
   }
   function setExts(list) {
+    // null = tick every extension (Alle). An array ticks exactly those (empty = none = all types).
     var allow = list ? list.map(function (x) { return x.toLowerCase(); }) : null;
-    document.querySelectorAll("#extBoxes input").forEach(function (b) { b.checked = !allow || allow.indexOf(b.value) >= 0; });
+    document.querySelectorAll("#extBoxes input").forEach(function (b) { b.checked = list === null || (allow && allow.indexOf(b.value) >= 0); });
     syncQuick();
   }
   function buildExt() {
     var box = $("extBoxes"); box.innerHTML = "";
     allExts().forEach(function (x) {
       var lab = document.createElement("label"), cb = document.createElement("input");
-      cb.type = "checkbox"; cb.value = x; cb.checked = true;
-      cb.addEventListener("change", function () { syncQuick(); run(); });
+      cb.type = "checkbox"; cb.value = x; cb.checked = false;
+      cb.addEventListener("change", function () { extAuto = false; syncQuick(); run(); });
       lab.appendChild(cb); lab.appendChild(document.createTextNode(x));
       box.appendChild(lab);
     });
     syncQuick();
   }
-  function applyModelExt(sub) {
-    var exts = LK.modelExt(sub, $("family").value);
-    if (exts) setExts(exts);
-  }
-  var timer = 0;
+  var extAuto = false, timer = 0;
   function later() { clearTimeout(timer); timer = setTimeout(run, 150); }
-  function q() { return { family: $("family").value, submodel: $("submodel").value, dossier: $("dossier").value, customer: $("customer").value, exts: selectedExts() }; }
+  function onQuery() {
+    var exts = LK.modelExtFromQuery($("q").value);
+    if (exts) { setExts(exts); extAuto = true; }
+    else if (extAuto) { setExts([]); extAuto = false; }
+    later();
+  }
+  function q() { return { text: $("q").value, exts: selectedExts() }; }
   function run() {
     var res = $("res"), list = active(), qq = q();
     res.dataset.done = "1"; res.innerHTML = "";
@@ -234,19 +226,12 @@
     $("btnHelp").addEventListener("click", function () { $("help").hidden = false; });
     $("helpClose").addEventListener("click", function () { $("help").hidden = true; });
     buildExt();
-    $("clear").addEventListener("click", function () { ["family", "submodel", "dossier", "customer"].forEach(function (i) { $(i).value = ""; }); setExts(null); refreshLists(); run(); });
+    $("clear").addEventListener("click", function () { $("q").value = ""; extAuto = false; setExts([]); run(); });
     $("f").addEventListener("submit", function (e) { e.preventDefault(); document.activeElement && document.activeElement.blur(); run(); });
-    $("extAll").addEventListener("click", function () { setExts(null); run(); });
-    $("extParam").addEventListener("click", function () { setExts(LK.EXT.param); run(); });
-    $("extOffice").addEventListener("click", function () { setExts(LK.EXT.office); run(); });
-    LK.combo($("family"), famItems, function (v, typing) { if (!typing) { $("submodel").value = ""; setExts(null); } refreshLists(); later(); });
-    LK.combo($("submodel"), subItems, function (v, typing) {
-      var exts = LK.modelExt(v, $("family").value);
-      if (exts && (!typing || LK.key(v) === LK.key(canonSub($("family").value, v)))) applyModelExt(v);
-      later();
-    });
-    LK.combo($("dossier"), function () { return DOS; }, later);
-    LK.combo($("customer"), function () { return []; }, later);
+    $("extAll").addEventListener("click", function () { extAuto = false; setExts(null); run(); });
+    $("extParam").addEventListener("click", function () { extAuto = false; setExts(LK.EXT.param); run(); });
+    $("extOffice").addEventListener("click", function () { extAuto = false; setExts(LK.EXT.office); run(); });
+    LK.combo($("q"), suggestItems, function () { onQuery(); });
     function net() { $("off").hidden = navigator.onLine; }
     window.addEventListener("online", net); window.addEventListener("offline", net); net();
     try {
@@ -256,7 +241,7 @@
       }
     } catch (e) {}
     for (var s of C.SHARES.concat(Object.keys(IX))) { try { var h = await LK.hGet(s); if (h) HANDLES[s] = h; } catch (e) {} }
-    refreshLists(); applyLang(); run();
+    applyLang(); run();
     document.body.dataset.ready = "1";
     if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(function () {});
   }

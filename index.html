@@ -15,7 +15,7 @@
 <body>
 <header>
   <img src="icons/dormakaba-logo.svg" alt="dormakaba" class="logo">
-  <div class="ttl"><h1 data-t="title">Looky</h1><small data-t="sub"></small></div>
+  <div class="ttl"><h1 class="looky" aria-label="Looky">L<svg class="glasses" viewBox="0 0 46 22" aria-hidden="true" focusable="false"><circle cx="9" cy="11" r="7.2" fill="none" stroke="currentColor" stroke-width="2.6"/><circle cx="37" cy="11" r="7.2" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M16.2 11h13.6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>ky</h1><small data-t="sub"></small></div>
   <span id="off" class="off" data-t="offline" hidden></span>
   <div id="lang" class="seg"><button type="button" data-l="nl">NL</button><button type="button" data-l="fr">FR</button></div>
   <button type="button" id="btnHelp" class="sm" data-t="help"></button>
@@ -33,22 +33,17 @@
     <p id="msg" class="msg" role="status"></p>
   </section>
   <form class="card" id="f" autocomplete="off">
-    <div class="grid">
-      <label><span data-t="family"></span><div class="cb"><input id="family" data-ph="phFamily"></div></label>
-      <label><span data-t="submodel"></span><div class="cb"><input id="submodel" data-ph="phSub"></div></label>
-      <label><span data-t="dossier"></span><div class="cb"><input id="dossier" data-ph="phDossier" inputmode="text"></div></label>
-      <label><span data-t="customer"></span><div class="cb"><input id="customer" data-ph="phCustomer" type="search"></div></label>
-    </div>
     <div class="exts">
       <span data-t="ftype"></span>
       <div class="row" id="extQuick">
         <button type="button" id="extParam" data-t="tParam"></button>
         <button type="button" id="extOffice" data-t="tOffice"></button>
         <button type="button" id="extAll" data-t="tAll"></button>
+        <button type="button" id="clear" class="sec" data-t="clear"></button>
       </div>
       <div id="extBoxes" class="ticks"></div>
     </div>
-    <div class="row"><button type="submit" data-t="search"></button><button type="button" id="clear" class="sec" data-t="clear"></button></div>
+    <label class="q"><span data-t="q"></span><div class="cb"><input id="q" data-ph="phQ" type="search"></div></label>
   </form>
   <section class="card"><p id="count"></p><ul id="res"></ul></section>
 </main>

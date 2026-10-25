@@ -9,7 +9,8 @@
     var btn = document.createElement("button"); btn.type = "button"; btn.className = "cbb"; btn.tabIndex = -1; btn.textContent = "▾";
     btn.setAttribute("aria-label", "▾"); wrap.appendChild(btn);
     function render(all) {
-      var q = LK.norm(el.value).trim(), qk = LK.key ? LK.key(el.value) : "", items = getItems().filter(function (it) {
+      var raw = String(el.value || ""), last = raw.split(/\s+/).pop() || "";
+      var q = LK.norm(last).trim(), qk = LK.key ? LK.key(last) : "", items = getItems().filter(function (it) {
         if (all || !q) return true;
         if (LK.norm(it.v).indexOf(q) >= 0 || LK.norm(it.l || "").indexOf(q) >= 0) return true;
         return !!(qk && ((LK.key(it.v).indexOf(qk) >= 0) || (it.l && LK.key(it.l).indexOf(qk) >= 0)));
@@ -30,6 +31,7 @@
     el.addEventListener("input", function () { render(false); if (onPick) onPick(el.value, true); });
     el.addEventListener("blur", function () { setTimeout(hide, 120); });
     btn.addEventListener("mousedown", function (e) { e.preventDefault(); if (ul.hidden) { el.focus(); render(true); } else hide(); });
+    document.addEventListener("mousedown", function (e) { if (!wrap.contains(e.target)) hide(); });
     el.addEventListener("keydown", function (e) {
       var li = ul.children;
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
