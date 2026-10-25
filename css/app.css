@@ -31,6 +31,12 @@ label > span { display: block; font-size: .85rem; color: var(--mut); margin-bott
 .r { padding: .5rem 0; border-bottom: 1px solid #eee; }
 .rn { font-weight: 600; word-break: break-all; } .rp { font-size: .85rem; color: var(--mut); word-break: break-all; } .rm { font-size: .85rem; }
 .ra { display: flex; gap: .4rem; margin-top: .3rem; flex-wrap: wrap; }
+.exts { margin-top: .7rem; } .exts > span { display: block; font-size: .85rem; color: var(--mut); margin-bottom: .2rem; }
+#extQuick { margin-top: .2rem; } #extQuick button { min-height: 40px; }
+#extQuick button[aria-pressed="true"] { background: #312e81; }
+.ticks { display: flex; flex-wrap: wrap; gap: .25rem .7rem; margin-top: .45rem; }
+.ticks label { display: inline-flex; align-items: center; gap: .3rem; font-size: .9rem; min-height: 32px; }
+.ticks input { width: 18px; height: 18px; margin: 0; }
 .modal { position: fixed; inset: 0; background: #0006; display: flex; align-items: flex-start; justify-content: center; padding: 1rem; overflow: auto; z-index: 20; }
 .modal[hidden] { display: none; }
 .mbox { background: #fff; border-radius: 10px; padding: 1rem; max-width: 700px; width: 100%; }

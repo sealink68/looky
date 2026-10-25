@@ -23,6 +23,12 @@ LK.EXT = {
   office: [".pdf", ".doc", ".docx", ".docm", ".dot", ".dotx", ".xls", ".xlsx", ".xlsm", ".xlsb", ".csv", ".ppt", ".pptx",
     ".pptm", ".pps", ".ppsx", ".odt", ".ods", ".odp", ".rtf", ".txt", ".vsd", ".vsdx", ".one", ".msg"]
 };
+/* Typical extensions per sub-model. Add a line to extend.
+   The key is matched ignoring case, spaces, dashes and underscores (TPB M04 = TPB-M04).
+   Optional "Family/Model" limits the default to that family; a bare model id applies to every family. */
+LK.MODEL_EXT = {
+  "Kerberos/TPB-M04": [".kmc", ".eep"]
+};
 /* Glossary: each line is one concept; a typed term matching any word also matches all the others (NL/FR/EN/DE).
    Matching is case- and accent-insensitive. Add lines freely. */
 LK.GLOSSARY = [
@@ -61,17 +67,18 @@ LK.T = {
     idxLoaded: "Index geladen: {s} ({n} bestanden, {d}).", idxOld: "Let op: index ouder dan 30 dagen.",
     noFs: "Index bijwerken kan enkel op een PC in Google Chrome of Edge.",
     family: "Productfamilie", submodel: "Submodel", dossier: "Dossiernummer", customer: "Klant / vrije tekst", ftype: "Bestandstype",
-    phFamily: "kies of typ…", phSub: "kies of typ…", phDossier: "bv. 12345", phCustomer: "bv. klantnaam, deur, handleiding…", phType: "kies of typ bv. pdf",
+    phFamily: "kies of typ…", phSub: "kies of typ…", phDossier: "bv. 12345", phCustomer: "bv. klantnaam, deur, handleiding…",
     tAll: "Alle", tParam: "Parameter/Firmware", tOffice: "Office",
     search: "Zoeken", clear: "Wissen", results: "{n} resultaten", resultsMax: "{n} resultaten (eerste {m} getoond)", noRes: "Geen resultaten.",
     open: "Openen", download: "Downloaden", copy: "Pad kopiëren", onedrive: "Openen in OneDrive", copied: "Gekopieerd!", needPc: "Openen: zoek dit pad in de OneDrive-app.",
     notFound: "Bestand niet gevonden (index verouderd?).",
     helpTxt: [
       "## Zoeken",
-      "• Kies of typ een productfamilie, submodel, dossiernummer en/of klant. Elk veld toont een lijst; je mag ook vrij typen.",
-      "• Bestandstype: Alle, Parameter/Firmware (.xml .prd .dat .kmc .eep .mot), Office (pdf, Word, Excel, PowerPoint, Visio, …) of typ zelf een extensie (bv. pdf of xml,dat).",
+      "• Kies of typ een productfamilie en submodel. De lijsten tonen alleen wat in de geladen index staat; je mag ook vrij typen. Hoofdletters, spaties, streepjes en underscores maken niet uit (ES 200 = ES200).",
+      "• Een submodel vinkt meteen zijn gebruikelijke extensies aan (bv. Kerberos TPB-M04 → .kmc en .eep) en toont de resultaten. Dossier en klant verfijnen live.",
+      "• Bestandstype: vink extensies aan. ‘Parameter/Firmware’, ‘Office’ en ‘Alle’ zetten een groep in één klik.",
       "• Vrije tekst vindt ook vertalingen: ‘deur’ vindt ook ‘porte’, ‘door’, ‘Tür’. Hoofdletters en accenten maken niet uit.",
-      "• Resultaten: nieuwste eerst.",
+      "• Resultaten: nieuwste eerst, terwijl je typt.",
       "## Index (PC)",
       "1. Open Looky in Chrome op een PC met OneDrive (ESC_Share/ESA_Share ‘Altijd op dit apparaat behouden’).",
       "2. Klik ‘Index bijwerken’ en kies de hoofdmap van de share. Looky onthoudt de map; na herstart volstaat één klik op ‘Toegang toestaan’.",
@@ -99,17 +106,18 @@ LK.T = {
     idxLoaded: "Index chargé : {s} ({n} fichiers, {d}).", idxOld: "Attention : index de plus de 30 jours.",
     noFs: "La mise à jour de l'index n'est possible que sur PC dans Google Chrome ou Edge.",
     family: "Famille de produit", submodel: "Sous-modèle", dossier: "N° de dossier", customer: "Client / texte libre", ftype: "Type de fichier",
-    phFamily: "choisir ou taper…", phSub: "choisir ou taper…", phDossier: "p. ex. 12345", phCustomer: "p. ex. nom du client, porte, manuel…", phType: "choisir ou taper p. ex. pdf",
+    phFamily: "choisir ou taper…", phSub: "choisir ou taper…", phDossier: "p. ex. 12345", phCustomer: "p. ex. nom du client, porte, manuel…",
     tAll: "Tous", tParam: "Paramètre/Firmware", tOffice: "Office",
     search: "Rechercher", clear: "Effacer", results: "{n} résultats", resultsMax: "{n} résultats ({m} premiers affichés)", noRes: "Aucun résultat.",
     open: "Ouvrir", download: "Télécharger", copy: "Copier le chemin", onedrive: "Ouvrir dans OneDrive", copied: "Copié !", needPc: "Ouvrir : cherchez ce chemin dans l'app OneDrive.",
     notFound: "Fichier introuvable (index périmé ?).",
     helpTxt: [
       "## Rechercher",
-      "• Choisissez ou tapez une famille de produit, un sous-modèle, un n° de dossier et/ou un client. Chaque champ propose une liste ; vous pouvez aussi taper librement.",
-      "• Type de fichier : Tous, Paramètre/Firmware (.xml .prd .dat .kmc .eep .mot), Office (pdf, Word, Excel, PowerPoint, Visio, …) ou tapez une extension (p. ex. pdf ou xml,dat).",
+      "• Choisissez ou tapez une famille et un sous-modèle. Les listes ne montrent que ce qui est dans l'index chargé ; la saisie libre reste possible. Majuscules, espaces, tirets et underscores sont ignorés (ES 200 = ES200).",
+      "• Un sous-modèle coche tout de suite ses extensions habituelles (p. ex. Kerberos TPB-M04 → .kmc et .eep) et affiche les résultats. Dossier et client affinent en direct.",
+      "• Type de fichier : cochez les extensions. « Paramètre/Firmware », « Office » et « Tous » règlent un groupe en un clic.",
       "• Le texte libre trouve aussi les traductions : « porte » trouve aussi « deur », « door », « Tür ». Majuscules et accents sans importance.",
-      "• Résultats : les plus récents d'abord.",
+      "• Résultats : les plus récents d'abord, pendant la saisie.",
       "## Index (PC)",
       "1. Ouvrez Looky dans Chrome sur un PC avec OneDrive (ESC_Share/ESA_Share « Toujours conserver sur cet appareil »).",
       "2. Cliquez « Mettre à jour l'index » et choisissez le dossier racine du partage. Looky retient le dossier ; après redémarrage, un clic sur « Autoriser l'accès » suffit.",

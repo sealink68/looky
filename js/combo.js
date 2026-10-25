@@ -9,8 +9,10 @@
     var btn = document.createElement("button"); btn.type = "button"; btn.className = "cbb"; btn.tabIndex = -1; btn.textContent = "▾";
     btn.setAttribute("aria-label", "▾"); wrap.appendChild(btn);
     function render(all) {
-      var q = LK.norm(el.value).trim(), items = getItems().filter(function (it) {
-        return all || !q || LK.norm(it.v).indexOf(q) >= 0 || LK.norm(it.l || "").indexOf(q) >= 0;
+      var q = LK.norm(el.value).trim(), qk = LK.key ? LK.key(el.value) : "", items = getItems().filter(function (it) {
+        if (all || !q) return true;
+        if (LK.norm(it.v).indexOf(q) >= 0 || LK.norm(it.l || "").indexOf(q) >= 0) return true;
+        return !!(qk && ((LK.key(it.v).indexOf(qk) >= 0) || (it.l && LK.key(it.l).indexOf(qk) >= 0)));
       });
       ul.innerHTML = ""; act = -1;
       items.slice(0, 200).forEach(function (it) {

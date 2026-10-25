@@ -15,7 +15,9 @@ TREE = {"ESC_Share": {
   "projecten": {
     "Kentaur": {"D12345": {"Kentaur_FTS-E01_D12345_2026-01-02_1030.xml": [10, 300], "Kentaur_FTS-E01_D12345_2026-01-05_0900.PRD": [12, 100],
                            "Kentaur_FTS-E01_D12345_info.pdf": [2000, 200], "Schuifdeur handleiding Janssens.PDF": [5000, 50]}},
-    "Kerberos": {"D777": {"Kerberos_TPB-E01_D777_2026-02-01_1200.dat": [7, 20], "Klant Dupont – Motor schéma.vsdx": [900, 10]}},
+    "Kerberos": {"D777": {"Kerberos_TPB-E01_D777_2026-02-01_1200.dat": [7, 20], "Klant Dupont – Motor schéma.vsdx": [900, 10]},
+                 "TPB-M04": {"D900": {"config.kmc": [20, 4000], "params.eep": [15, 4100], "handleiding.pdf": [100, 4200], "extra.xml": [8, 4300]}}},
+    "Gallenschütz": {"ETS21": {"board.pdf": [30, 4400]}},
     "ESC-param": {}},
   "Algemeen": {"Firmware": {"ctrl_v2.mot": [100, 5], "readme.txt": [3, 1000]}, "~$lock.docx": [1, 1], "Thumbs.db": [1, 1],
                "notes.tmp": [1, 1], "upload.bin.tmp.driveupload": [2, 1], "download.bin.tmp.drivedownload": [2, 1], "desktop.ini": [1, 1],
@@ -33,9 +35,16 @@ VP = {"pc": dict(viewport={"width": 1366, "height": 800}),
                    user_agent="Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1")}
 NOFS = "delete window.showDirectoryPicker; window.open=function(){};"
 def names(pg): return pg.eval_on_selector_all("#res .rn", "e=>e.map(x=>x.textContent)")
+def set_exts(pg, ft):
+    if ft in ("Alle", "Tous", "all", "", None): pg.click("#extAll"); return
+    if ft in ("Parameter/Firmware", "param"): pg.click("#extParam"); return
+    if ft == "Office": pg.click("#extOffice"); return
+    want = [("." + x if not str(x).startswith(".") else x) for x in str(ft).replace(" ", "").split(",") if x]
+    for b in pg.query_selector_all("#extBoxes input"):
+        if b.is_checked() != (b.get_attribute("value") in want): b.click()
 def setq(pg, **kw):
     for k in ["family", "submodel", "dossier", "customer"]: pg.fill("#" + k, kw.get(k, ""))
-    pg.fill("#ftype", kw.get("ftype", "Alle")); pg.press("#ftype", "Enter"); pg.wait_for_timeout(250)
+    set_exts(pg, kw.get("ftype", "Alle")); pg.wait_for_timeout(250)
 written = None
 with sync_playwright() as p:
     b = p.chromium.launch(executable_path="/usr/bin/google-chrome", headless=True)
@@ -50,42 +59,52 @@ with sync_playwright() as p:
     ok("pc: picker used + index written", "picker" in pg.evaluate("__log") and "write looky-index.json" in pg.evaluate("__log"))
     written = json.loads(pg.evaluate("__root.c['looky-index.json'].data"))
     paths = {e["path"]: e for e in written["entries"]}
-    ok("pc: index share name + date + count", written["share"] == "ESC_Share" and written["generated"][:4] == "2026" and written["count"] == 8)
+    ok("pc: index share name + date + count", written["share"] == "ESC_Share" and written["generated"][:4] == "2026" and written["count"] == 13)
     ok("pc: skips ~$, Thumbs.db, old index", not any("~$" in x or "Thumbs" in x or x == "looky-index.json" for x in paths))
     ok("pc: skips OneDrive temps and entries that throw", written["skipped"] == 10 and not any(x.endswith(".tmp") or "drivedownload" in x or "driveupload" in x or x.endswith("desktop.ini") or "vanished.pdf" in x or x.endswith("locked.docx") or "denied.xlsx" in x or "gone-dir" in x for x in paths))
-    ok("pc: summary after a partial scan", "8 bestanden geïndexeerd, 10 overgeslagen" in pg.inner_text("#msg") and "fichiers indexés" in pg.evaluate("LK.T.fr.idxDone") and "ignorés" in pg.evaluate("LK.T.fr.idxSum"))
+    ok("pc: summary after a partial scan", "13 bestanden geïndexeerd, 10 overgeslagen" in pg.inner_text("#msg") and "fichiers indexés" in pg.evaluate("LK.T.fr.idxDone") and "ignorés" in pg.evaluate("LK.T.fr.idxSum"))
+    e = paths["projecten/Kerberos/TPB-M04/D900/config.kmc"]
+    ok("pc: TPB-M04 folder stored as sub-model", (e.get("family"), e.get("submodel"), e.get("dossier"), e["ext"]) == ("Kerberos", "TPB-M04", "D900", ".kmc"))
+    e = paths["projecten/Gallenschütz/ETS21/board.pdf"]
+    ok("pc: Gallenschütz ETS21 stored", (e.get("family"), e.get("submodel")) == ("Gallenschütz", "ETS21"))
     e = paths["projecten/Kentaur/D12345/Kentaur_FTS-E01_D12345_2026-01-05_0900.PRD"]
     ok("pc: family/submodel/dossier from ESC_tool name", (e.get("family"), e.get("submodel"), e.get("dossier"), e["ext"]) == ("Kentaur", "FTS-E01", "D12345", ".prd"))
     e = paths["projecten/Kentaur/D12345/Schuifdeur handleiding Janssens.PDF"]
     ok("pc: family/dossier from folder projecten/<F>/<D>", (e.get("family"), e.get("dossier"), e.get("submodel")) == ("Kentaur", "D12345", None))
     e = paths["Algemeen/Firmware/ctrl_v2.mot"]; ok("pc: tolerant for unknown structure", "family" not in e and e["size"] == 100)
-    ok("pc: index info row", "ESC_Share: 8 bestanden" in pg.inner_text("#idxList"))
+    ok("pc: index info row", "ESC_Share: 13 bestanden" in pg.inner_text("#idxList"))
     P = lambda x: pg.evaluate("p=>LK.parse(p)", x)
     ok("parse: generic projecten-like (ESA names)", P("Projecten/Revolving/E555/sub/plan.pdf") == {"family": "Revolving", "dossier": "E555"})
     ok("parse: no container -> top-level folder", P("Klanten/Peeters/2024/x.pdf") == {"family": "Peeters", "dossier": "2024"} and P("Algemeen/Firmware/a.mot") == {})
-    ok("parse: ESA name scheme", P("projets/Revolving/E9/Revolving_KTV-4_E9_2026-03-01_0800.xml") == {"family": "Revolving", "dossier": "E9", "submodel": "KTV-4"})
+    ok("parse: ESA name scheme", P("projets/Revolving/E9/Revolving_KTV-4_E9_2026-03-01_0800.xml") == {"family": "Revolving", "dossier": "E9", "submodel": "KTV 4"})
     ok("parse: file directly in projecten/<F>", P("projecten/Argus/x.pdf") == {"family": "Argus"})
     ok("parse: multi-word sub-model ES 200 T from file name", P("projecten/ES 200/D9/plan ES_200_T.pdf") == {"family": "ES 200", "dossier": "D9", "submodel": "ES 200 T"})
     ok("parse: longest sub-model wins + glued form", P("Docs/TS92XEA manual.pdf") == {"family": "TS", "submodel": "TS 92 XEA"} or P("Docs/ts 92 xea manual.pdf") == {"family": "TS", "submodel": "TS 92 XEA"})
     ok("parse: no false sub-model inside words", P("Docs/costs.pdf") == {})
+    ok("parse: TPB M04 = TPB-M04", P("projecten/Kerberos/D1/TPB M04 setup.eep") == {"family": "Kerberos", "dossier": "D1", "submodel": "TPB-M04"})
+    ok("parse: es-200 = ES 200", P("projecten/es-200/D1/a.pdf")["family"] == "ES 200" and P("projecten/ES200/a.pdf")["family"] == "ES 200")
+    ok("norm: search ignores spaces and dashes", pg.evaluate("""() => {
+      var ix = {share:"t", entries:[{path:"projecten/ES 200/a.pdf", name:"a.pdf", ext:".pdf", family:"ES 200", submodel:"ES 200", size:1, lastModified:2},
+        {path:"x.kmc", name:"x.kmc", ext:".kmc", family:"Kerberos", submodel:"TPB-M04", size:1, lastModified:1}]};
+      return LK.search([ix], {family:"es200", submodel:"", dossier:"", customer:"", exts:null}).length === 1
+        && LK.search([ix], {family:"", submodel:"TPB M04", dossier:"", customer:"", exts:[".kmc"]}).length === 1
+        && LK.key("ES-200") === "es200" && LK.modelExt("tpb m04", "kerberos").join() === ".kmc,.eep";
+    }"""))
     ok("pc: all results newest first", names(pg)[:2] == ["readme.txt", "ctrl_v2.mot"][::-1] or names(pg)[0] == "ctrl_v2.mot")
     lm = pg.evaluate("Array.from(document.querySelectorAll('#res .rm')).map(x=>x.textContent)")
     ok("pc: result has date+size", "/2026" in lm[0] and "B" in lm[0])
     # combobox family list
     pg.click("#family"); items = pg.eval_on_selector_all("#family ~ .cbl li b", "e=>e.map(x=>x.textContent)")
-    esc = ["Kerberos", "Kentaur", "Charon", "Argus", "Geryon", "Orthos", "CRP", "PGB"]
-    ok("pc: family combobox keeps all ESC_tool families", all(f in items for f in esc))
-    ok("pc: family combobox lists dormakaba door systems", all(f in items for f in ["ES PROLINE", "ES 200", "ED", "KTV", "KTC", "TS", "BTS"]) and len(items) == 31)
-    ok("pc: families ordered by group (Schuifdeuren first)", items[0] == "ES PROLINE" and items.index("ED") < items.index("KTV") < items.index("Kerberos") < items.index("TS") < items.index("BTS"))
+    ok("pc: family dropdown lists only families found in the index", items == ["Kerberos", "Kentaur", "Gallenschütz"])
     gl = pg.eval_on_selector_all("#family ~ .cbl li", "e=>e.map(x=>x.dataset.v+'|'+(x.querySelector('small')||{}).textContent)")
-    ok("pc: family items show NL group label", "ES 200|Schuifdeuren" in gl and "Kentaur|Toegangscontrole / sensorbarrières" in gl and "BTS|Vloerveren" in gl)
-    pg.fill("#family", "carrousel"); fl2 = pg.eval_on_selector_all("#family ~ .cbl li b", "e=>e.map(x=>x.textContent)")
-    pg.keyboard.press("Escape"); ok("pc: typing a group name filters families", fl2 == ["KTV", "KTC", "KT FLEX", "Crane"])
+    ok("pc: family items show NL group label", "Kentaur|Toegangscontrole / sensorbarrières" in gl and "Gallenschütz|Toegangscontrole / sensorbarrières" in gl)
+    pg.fill("#family", "sensor"); fl2 = pg.eval_on_selector_all("#family ~ .cbl li b", "e=>e.map(x=>x.textContent)")
+    pg.keyboard.press("Escape"); ok("pc: typing a group name filters families", fl2 == ["Kerberos", "Kentaur", "Gallenschütz"])
     pg.fill("#family", ""); pg.click("#customer"); pg.click("#family")
     pg.click("#family ~ .cbl li[data-v=Kentaur]"); pg.wait_for_timeout(250)
     ok("pc: pick family Kentaur -> filtered", set(names(pg)) == {"Kentaur_FTS-E01_D12345_2026-01-02_1030.xml", "Kentaur_FTS-E01_D12345_2026-01-05_0900.PRD", "Kentaur_FTS-E01_D12345_info.pdf", "Schuifdeur handleiding Janssens.PDF"})
     pg.click("#submodel"); subs = pg.eval_on_selector_all("#submodel ~ .cbl li b", "e=>e.map(x=>x.textContent)")
-    ok("pc: sub-model list filtered by family (15 Kentaur)", len(subs) == 15 and "FTS-E01" in subs and "TPB-E01" not in subs)
+    ok("pc: sub-model list is only models found for that family", subs == ["FTS-E01"])
     pg.keyboard.type("fts-e0"); subs2 = pg.eval_on_selector_all("#submodel ~ .cbl li b", "e=>e.map(x=>x.textContent)")
     ok("pc: typing filters sub-model list", subs2 and all(s.startswith("FTS-E0") for s in subs2))
     pg.keyboard.press("ArrowDown"); pg.keyboard.press("Enter")
@@ -94,12 +113,24 @@ with sync_playwright() as p:
     setq(pg, family="kentaur", submodel="fts-e01", ftype="Parameter/Firmware")
     ok("pc: free input case-insensitive + Param filter (.PRD,.xml)", sorted(names(pg)) == ["Kentaur_FTS-E01_D12345_2026-01-02_1030.xml", "Kentaur_FTS-E01_D12345_2026-01-05_0900.PRD"])
     ok("pc: newest first", names(pg)[0].endswith(".PRD"))
-    setq(pg, ftype="Office"); ok("pc: Office filter (.PDF .pdf .vsdx .txt .xml excluded)", set(names(pg)) == {"Kentaur_FTS-E01_D12345_info.pdf", "Schuifdeur handleiding Janssens.PDF", "Klant Dupont – Motor schéma.vsdx", "readme.txt"})
+    setq(pg, ftype="Office"); ok("pc: Office filter (.PDF .pdf .vsdx .txt .xml excluded)", set(names(pg)) == {"Kentaur_FTS-E01_D12345_info.pdf", "Schuifdeur handleiding Janssens.PDF", "Klant Dupont – Motor schéma.vsdx", "readme.txt", "handleiding.pdf", "board.pdf"})
     setq(pg, ftype="mot"); ok("pc: free typed extension", names(pg) == ["ctrl_v2.mot"])
     setq(pg, family="TS"); ok("pc: family TS is whole-word (no match in FTS-E01)", names(pg) == [])
     setq(pg, dossier="d777"); ok("pc: dossier free input", len(names(pg)) == 2)
     pg.fill("#family", "Kerberos"); pg.click("#dossier"); dl = pg.eval_on_selector_all("#dossier ~ .cbl li b", "e=>e.map(x=>x.textContent)")
-    ok("pc: dossier list from index, filtered by family", dl == ["D777"])
+    ok("pc: dossier list from index, filtered by family", dl == ["D777", "D900"])
+    pg.fill("#dossier", ""); pg.click("#submodel"); subs = pg.eval_on_selector_all("#submodel ~ .cbl li b", "e=>e.map(x=>x.textContent)")
+    ok("pc: Kerberos sub-models are only those in the index", subs == ["TPB-E01", "TPB-M04"])
+    pg.click("#submodel ~ .cbl li[data-v='TPB-M04']"); pg.wait_for_timeout(300)
+    checked = pg.eval_on_selector_all("#extBoxes input:checked", "e=>e.map(x=>x.value).sort()")
+    ok("pc: TPB-M04 auto-selects .kmc and .eep", checked == [".eep", ".kmc"])
+    ok("pc: TPB-M04 lists matching files at once", set(names(pg)) == {"config.kmc", "params.eep"})
+    pg.fill("#dossier", "D900"); pg.wait_for_timeout(250); ok("pc: dossier narrows TPB-M04 live", set(names(pg)) == {"config.kmc", "params.eep"})
+    pg.fill("#customer", "config"); pg.wait_for_timeout(250); ok("pc: klant narrows TPB-M04 live", names(pg) == ["config.kmc"])
+    pg.fill("#customer", ""); pg.click("#extBoxes input[value='.pdf']"); pg.wait_for_timeout(200)
+    ok("pc: user can add a tick after the model default", ".pdf" in pg.eval_on_selector_all("#extBoxes input:checked", "e=>e.map(x=>x.value)") and "handleiding.pdf" in names(pg) and "config.kmc" in names(pg))
+    pg.fill("#submodel", "tpb m04"); pg.wait_for_timeout(300)
+    ok("pc: typed TPB M04 matches TPB-M04 defaults", pg.eval_on_selector_all("#extBoxes input:checked", "e=>e.map(x=>x.value).sort()") == [".eep", ".kmc"])
     setq(pg, customer="porte"); ok("glossary: porte -> Schuifdeur (deur)", "Schuifdeur handleiding Janssens.PDF" in names(pg))
     setq(pg, customer="sliding door"); ok("glossary: 'sliding door' -> Schuifdeur", names(pg) == ["Schuifdeur handleiding Janssens.PDF"])
     setq(pg, customer="Tür manual"); ok("glossary: 'Tür manual' -> deur + handleiding", names(pg) == ["Schuifdeur handleiding Janssens.PDF"])
@@ -111,14 +142,14 @@ with sync_playwright() as p:
     ok("pc: result has Open, Download, OneDrive and copy", all(pg.locator("#res li.r").first.locator(c).count() == 1 for c in [".open", ".dl", "a.od", ".cp"]))
     pg.click("#res .dl"); pg.wait_for_timeout(200); ok("pc: download button works", pg.evaluate("__opened").endswith("Janssens.PDF"))
     # language memory
-    pg.click("#lang button[data-l=fr]"); ok("lang: FR labels", "Mettre à jour l'index" in pg.inner_text("#btnUpdate") and pg.input_value("#ftype") == "Tous")
+    pg.click("#lang button[data-l=fr]"); ok("lang: FR labels", "Mettre à jour l'index" in pg.inner_text("#btnUpdate") and pg.inner_text("#extAll") == "Tous")
     pg.evaluate("sessionStorage.setItem('perm','prompt')"); pg.reload(); pg.wait_for_selector("body[data-ready='1']")
     ok("lang: FR remembered after reload", pg.evaluate("document.documentElement.lang") == "fr" and "Famille" in pg.inner_text("#f"))
-    ok("pc: index cached in IndexedDB after reload", "ESC_Share : 8 fichiers" in pg.inner_text("#idxList"))
+    ok("pc: index cached in IndexedDB after reload", "ESC_Share : 13 fichiers" in pg.inner_text("#idxList"))
     ok("pc: permission prompt -> one-click renew button", "Autoriser l'accès : ESC_Share" in pg.inner_text(".idx .upd"))
     pg.evaluate("__root.c.Algemeen.c['nieuw.docx']={kind:'file',name:'nieuw.docx',data:'abc',mt:Date.now(),getFile:__root.c.Algemeen.c.Firmware.c['readme.txt'].getFile}")
     pg.click(".idx .upd"); pg.wait_for_timeout(500)
-    ok("pc: renew asks permission + rescans", "request" in pg.evaluate("__log") and "ESC_Share : 9 fichiers" in pg.inner_text("#idxList"))
+    ok("pc: renew asks permission + rescans", "request" in pg.evaluate("__log") and "ESC_Share : 14 fichiers" in pg.inner_text("#idxList"))
     pg.click("#help button") if False else pg.click("#btnHelp"); ok("help FR", "iPhone / iPad" in pg.inner_text("#helpBody") and "Charger l'index" in pg.inner_text("#helpBody") and "ignorés" in pg.inner_text("#helpBody"))
     pg.click("#helpClose"); pg.click("#lang button[data-l=nl]"); pg.click("#btnHelp"); ok("help NL", "Index laden" in pg.inner_text("#helpBody") and "overgeslagen" in pg.inner_text("#helpBody")); pg.click("#helpClose")
     pg.screenshot(path="/workspace/looky_pc.png", full_page=True); ctx.close()
@@ -130,7 +161,7 @@ with sync_playwright() as p:
     ok("iphone: no update button (no FS Access)", not pg.is_visible("#btnUpdate") and pg.is_visible("#btnLoad"))
     pg.set_input_files("#file", bad); pg.wait_for_timeout(300); ok("iphone: invalid file rejected", "geen geldig" in pg.inner_text("#msg"))
     pg.set_input_files("#file", [f1, f2]); pg.wait_for_function("document.querySelectorAll('.idx').length==2")
-    ok("iphone: ESC + ESA indexes loaded via file input, dates shown", "ESA_Share: 3 bestanden – index van 20/10/2026" in pg.inner_text("#idxList") and "ESC_Share: 8" in pg.inner_text("#idxList"))
+    ok("iphone: ESC + ESA indexes loaded via file input, dates shown", "ESA_Share: 3 bestanden – index van 20/10/2026" in pg.inner_text("#idxList") and "ESC_Share: 13" in pg.inner_text("#idxList"))
     setq(pg, customer="sliding door"); ok("iphone: search across ESC+ESA (glossary)", set(names(pg)) == {"Schuifdeur handleiding Janssens.PDF", "Porte coulissante manuel.pdf"})
     setq(pg, ftype="Parameter/Firmware", customer="peeters"); ok("iphone: .eep in param group", names(pg) == ["param.eep"])
     ok("iphone: no open button, copy button", pg.locator("#res .open").count() == 0 and pg.locator("#res .cp").count() == 1)
@@ -144,7 +175,7 @@ with sync_playwright() as p:
     pg.check(".idx[data-share=ESA_Share] input"); pg.click("#family"); fl = pg.eval_on_selector_all("#family ~ .cbl li b", "e=>e.map(x=>x.textContent)")
     ok("iphone: family combobox learns ESA family from index", "Revolving" in fl and "Kentaur" in fl)
     pg.click("#family ~ .cbl li[data-v=Revolving]"); pg.click("#submodel"); sl = pg.eval_on_selector_all("#submodel ~ .cbl li b", "e=>e.map(x=>x.textContent)")
-    ok("iphone: sub-model combobox learns KTV-4 for Revolving", sl == ["KTV-4"])
+    ok("iphone: sub-model combobox learns KTV-4 for Revolving", sl == ["KTV 4"])
     setq(pg, family="Revolving", dossier="e555"); ok("iphone: learned family + dossier search", names(pg) == ["Revolving_KTV-4_E555_2026-03-01_0800.xml"])
     pg.uncheck(".idx[data-share=ESA_Share] input"); pg.click("#customer"); pg.click("#family"); fl = pg.eval_on_selector_all("#family ~ .cbl li b", "e=>e.map(x=>x.textContent)")
     ok("iphone: learned values disappear when ESA index disabled", "Revolving" not in fl)

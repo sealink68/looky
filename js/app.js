@@ -18,12 +18,7 @@
     document.querySelectorAll("#lang button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.l === lang)); });
     var h = $("helpBody"); h.innerHTML = "";
     t("helpTxt").forEach(function (l) { var e = document.createElement(l.indexOf("## ") === 0 ? "h3" : "p"); e.textContent = l.replace(/^## /, ""); h.appendChild(e); });
-    $("ftype").value && normType();
     renderIdx(); if ($("res").dataset.done) run();
-  }
-  function normType() { // keep group labels in the current language
-    var v = $("ftype").value, n = LK.norm(v);
-    ["tAll", "tParam", "tOffice"].forEach(function (k) { if (["nl", "fr"].some(function (l) { return LK.norm(LK.T[l][k]) === n; })) $("ftype").value = t(k); });
   }
 
   /* ---------- indexes ---------- */
@@ -89,54 +84,103 @@
   }
 
   /* ---------- form ---------- */
-  /* families/sub-models: ESC_tool list + values learned from the active indexes (e.g. ESA families) */
-  var LEARN = { fam: [], sub: {} };
-  function learn() {
-    var fs = {}, ss = {};
-    Object.keys(LK.MODELS).forEach(function (f) { fs[LK.norm(f)] = 1; LK.MODELS[f].forEach(function (m) { ss[LK.norm(f) + "|" + LK.norm(m.id)] = 1; }); });
-    LEARN = { fam: [], sub: {} };
-    active().forEach(function (ix) { ix.entries.forEach(function (e) {
-      if (!e.family) return; var nf = LK.norm(e.family);
-      if (!fs[nf]) { fs[nf] = 1; LEARN.fam.push(e.family); }
-      if (e.submodel && !ss[nf + "|" + LK.norm(e.submodel)]) { ss[nf + "|" + LK.norm(e.submodel)] = 1; (LEARN.sub[e.family] = LEARN.sub[e.family] || []).push(e.submodel); }
-    }); });
-    LEARN.fam.sort();
+  /* Dropdowns list only families/sub-models present in the active indexes. Typing a name that is not listed still searches. */
+  function canonFamily(name) {
+    var k = LK.key(name), hit = null;
+    Object.keys(LK.MODELS).forEach(function (f) { if (LK.key(f) === k) hit = f; });
+    return hit || name;
   }
-  /* families in group order (Schuifdeuren, Draaideuren, …), label = group name, so typing "schuif"/"coulis" lists them */
+  function canonSub(fam, name) {
+    var k = LK.key(name), cf = canonFamily(fam || ""), hit = null;
+    (LK.MODELS[cf] || []).forEach(function (m) { if (LK.key(m.id) === k) hit = m.id; });
+    if (hit) return hit;
+    Object.keys(LK.MODELS).forEach(function (f) { LK.MODELS[f].forEach(function (m) { if (!hit && LK.key(m.id) === k) hit = m.id; }); });
+    return hit || name;
+  }
   function famItems() {
-    var G = LK.FAMILY_GROUP || {}, gl = {}, out = [];
-    (LK.GROUPS || []).forEach(function (g) { gl[g.id] = g[lang] || g.nl; });
-    (LK.GROUPS || [{ id: "other" }]).forEach(function (g) {
-      Object.keys(LK.MODELS).concat(LEARN.fam).forEach(function (f) { if ((G[f] || "other") === g.id) out.push({ v: f, l: gl[g.id] || "" }); });
+    var G = LK.FAMILY_GROUP || {}, order = Object.keys(LK.MODELS), gl = {}, seen = {}, list = [];
+    (LK.GROUPS || []).forEach(function (g, i) { gl[g.id] = { i: i, l: g[lang] || g.nl }; });
+    active().forEach(function (ix) { ix.entries.forEach(function (e) {
+      if (!e.family) return;
+      var f = canonFamily(e.family);
+      if (seen[LK.key(f)]) return;
+      seen[LK.key(f)] = 1; list.push(f);
+    }); });
+    list.sort(function (a, b) {
+      var ga = (gl[G[a] || "other"] || { i: 99 }).i, gb = (gl[G[b] || "other"] || { i: 99 }).i;
+      if (ga !== gb) return ga - gb;
+      var ia = order.indexOf(a), ib = order.indexOf(b);
+      if (ia < 0) ia = 999; if (ib < 0) ib = 999;
+      return ia - ib || (a < b ? -1 : 1);
     });
-    return out;
+    return list.map(function (f) { return { v: f, l: (gl[G[f] || "other"] || {}).l || "" }; });
   }
   function subItems() {
-    var f = LK.norm($("family").value).trim(), out = [];
-    Object.keys(LK.MODELS).forEach(function (k) {
-      if (f && LK.norm(k) !== f) return;
-      LK.MODELS[k].forEach(function (m) { out.push({ v: m.id, l: (f ? "" : k + " – ") + ((m.desc && m.desc[lang]) || "") }); });
-    });
-    Object.keys(LEARN.sub).forEach(function (k) {
-      if (f && LK.norm(k) !== f) return;
-      LEARN.sub[k].sort().forEach(function (v) { out.push({ v: v, l: f ? "" : k }); });
-    });
+    var f = LK.key($("family").value), seen = {}, out = [];
+    active().forEach(function (ix) { ix.entries.forEach(function (e) {
+      if (!e.submodel) return;
+      var cf = canonFamily(e.family || "");
+      if (f && LK.key(cf) !== f) return;
+      var id = canonSub(cf, e.submodel), sk = LK.key(cf) + "|" + LK.key(id);
+      if (seen[sk]) return;
+      seen[sk] = 1;
+      var desc = "";
+      (LK.MODELS[cf] || []).some(function (m) { if (m.id === id && m.desc) { desc = m.desc[lang] || ""; return true; } });
+      out.push({ v: id, l: (f ? "" : cf + (desc ? " – " : "")) + desc });
+    }); });
+    out.sort(function (a, b) { return a.v < b.v ? -1 : 1; });
     return out;
   }
   var DOS = [];
   function refreshLists() { // dossier numbers seen in the active indexes (filtered by family)
-    learn(); var seen = {}, f = LK.norm($("family").value).trim(); DOS = [];
+    var seen = {}, f = LK.key($("family").value); DOS = [];
     active().forEach(function (ix) { ix.entries.forEach(function (e) {
-      if (e.dossier && !seen[e.dossier] && (!f || LK.norm(e.family) === f)) { seen[e.dossier] = 1; DOS.push({ v: e.dossier, l: e.family || "" }); }
+      if (e.dossier && !seen[e.dossier] && (!f || LK.key(e.family) === f)) { seen[e.dossier] = 1; DOS.push({ v: e.dossier, l: e.family || "" }); }
     }); });
     DOS.sort(function (a, b) { return a.v < b.v ? -1 : 1; });
   }
-  function typeItems() {
-    return [{ v: t("tAll") }, { v: t("tParam"), l: LK.EXT.param.join(" ") }, { v: t("tOffice"), l: LK.EXT.office.join(" ") }];
+  function allExts() {
+    var s = [], seen = {};
+    LK.EXT.param.concat(LK.EXT.office).forEach(function (x) { x = x.toLowerCase(); if (!seen[x]) { seen[x] = 1; s.push(x); } });
+    return s;
+  }
+  function selectedExts() {
+    var all = document.querySelectorAll("#extBoxes input"), on = [];
+    Array.prototype.forEach.call(all, function (b) { if (b.checked) on.push(b.value); });
+    if (!on.length || on.length === all.length) return null;
+    return on;
+  }
+  function syncQuick() {
+    var on = [], all = allExts();
+    document.querySelectorAll("#extBoxes input").forEach(function (b) { if (b.checked) on.push(b.value); });
+    function same(list) { return list.length === on.length && list.every(function (x) { return on.indexOf(x) >= 0; }); }
+    $("extAll").setAttribute("aria-pressed", String(on.length === all.length));
+    $("extParam").setAttribute("aria-pressed", String(same(LK.EXT.param)));
+    $("extOffice").setAttribute("aria-pressed", String(same(LK.EXT.office)));
+  }
+  function setExts(list) {
+    var allow = list ? list.map(function (x) { return x.toLowerCase(); }) : null;
+    document.querySelectorAll("#extBoxes input").forEach(function (b) { b.checked = !allow || allow.indexOf(b.value) >= 0; });
+    syncQuick();
+  }
+  function buildExt() {
+    var box = $("extBoxes"); box.innerHTML = "";
+    allExts().forEach(function (x) {
+      var lab = document.createElement("label"), cb = document.createElement("input");
+      cb.type = "checkbox"; cb.value = x; cb.checked = true;
+      cb.addEventListener("change", function () { syncQuick(); run(); });
+      lab.appendChild(cb); lab.appendChild(document.createTextNode(x));
+      box.appendChild(lab);
+    });
+    syncQuick();
+  }
+  function applyModelExt(sub) {
+    var exts = LK.modelExt(sub, $("family").value);
+    if (exts) setExts(exts);
   }
   var timer = 0;
   function later() { clearTimeout(timer); timer = setTimeout(run, 150); }
-  function q() { return { family: $("family").value, submodel: $("submodel").value, dossier: $("dossier").value, customer: $("customer").value, type: $("ftype").value }; }
+  function q() { return { family: $("family").value, submodel: $("submodel").value, dossier: $("dossier").value, customer: $("customer").value, exts: selectedExts() }; }
   function run() {
     var res = $("res"), list = active(), qq = q();
     res.dataset.done = "1"; res.innerHTML = "";
@@ -189,14 +233,20 @@
     $("file").addEventListener("change", function () { loadFiles(this.files); this.value = ""; });
     $("btnHelp").addEventListener("click", function () { $("help").hidden = false; });
     $("helpClose").addEventListener("click", function () { $("help").hidden = true; });
-    $("clear").addEventListener("click", function () { ["family", "submodel", "dossier", "customer"].forEach(function (i) { $(i).value = ""; }); $("ftype").value = t("tAll"); refreshLists(); run(); });
+    buildExt();
+    $("clear").addEventListener("click", function () { ["family", "submodel", "dossier", "customer"].forEach(function (i) { $(i).value = ""; }); setExts(null); refreshLists(); run(); });
     $("f").addEventListener("submit", function (e) { e.preventDefault(); document.activeElement && document.activeElement.blur(); run(); });
-    LK.combo($("family"), famItems, function (v, typing) { if (!typing) { $("submodel").value = ""; } refreshLists(); later(); });
-    LK.combo($("submodel"), subItems, later);
+    $("extAll").addEventListener("click", function () { setExts(null); run(); });
+    $("extParam").addEventListener("click", function () { setExts(LK.EXT.param); run(); });
+    $("extOffice").addEventListener("click", function () { setExts(LK.EXT.office); run(); });
+    LK.combo($("family"), famItems, function (v, typing) { if (!typing) { $("submodel").value = ""; setExts(null); } refreshLists(); later(); });
+    LK.combo($("submodel"), subItems, function (v, typing) {
+      var exts = LK.modelExt(v, $("family").value);
+      if (exts && (!typing || LK.key(v) === LK.key(canonSub($("family").value, v)))) applyModelExt(v);
+      later();
+    });
     LK.combo($("dossier"), function () { return DOS; }, later);
     LK.combo($("customer"), function () { return []; }, later);
-    LK.combo($("ftype"), typeItems, later);
-    $("ftype").value = t("tAll");
     function net() { $("off").hidden = navigator.onLine; }
     window.addEventListener("online", net); window.addEventListener("offline", net); net();
     try {

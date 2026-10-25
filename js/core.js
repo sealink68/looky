@@ -33,18 +33,54 @@
   /* known families/submodels, normalised */
   var FAM = {}, SUB = {}, SUBS = [];
   function sp(s) { return LK.norm(s).replace(/[\/_\-\s.]+/g, " ").trim(); } // "ES_200-T" -> "es 200 t"
-  LK.sp = sp;
+  function key(s) { return sp(s).replace(/ /g, ""); } // "ES 200" / "es-200" / "ES200" -> "es200"
+  LK.sp = sp; LK.key = key;
   Object.keys(LK.MODELS).forEach(function (f) {
-    FAM[LK.norm(f)] = FAM[sp(f)] = FAM[sp(f).replace(/ /g, "_")] = FAM[sp(f).replace(/ /g, "")] = f;
+    FAM[LK.norm(f)] = FAM[sp(f)] = FAM[key(f)] = f;
     LK.MODELS[f].forEach(function (m) {
-      var k = LK.norm(m.id), o = { f: f, id: m.id }; SUB[k] = SUB[k.replace(/[\s\/]+/g, "_")] = SUB[sp(m.id)] = o;
-      SUBS.push({ k: " " + sp(m.id) + " ", g: " " + sp(m.id).replace(/ /g, "") + " ", o: o });
+      var o = { f: f, id: m.id }; SUB[LK.norm(m.id)] = SUB[sp(m.id)] = SUB[key(m.id)] = o;
+      SUBS.push({ k: " " + sp(m.id) + " ", g: " " + key(m.id) + " ", o: o });
     });
   });
   SUBS.sort(function (a, b) { return b.k.length - a.k.length; }); // longest first: "TS 92 XEA" before "TS 92"
-  /* whole-word match of a (spaced) phrase in a spaced haystack, also glued ("es200") */
-  function word(h, q) { q = sp(q); return !!q && (h.indexOf(" " + q + " ") >= 0 || h.indexOf(" " + q.replace(/ /g, "") + " ") >= 0); }
-  LK.word = word;
+  /* whole-word match, also ignoring spaces/dashes/underscores ("ES 200" = "ES200" = "es-200") */
+  function hasPhrase(path, phrase) {
+    var want = sp(phrase).split(" ").filter(Boolean);
+    if (!want.length) return false;
+    var parts = sp(path).split(" ").filter(Boolean), g = want.join(""), w = want.length, i, j, ok;
+    for (i = 0; i + w <= parts.length; i++) {
+      ok = true;
+      for (j = 0; j < w; j++) if (parts[i + j] !== want[j]) { ok = false; break; }
+      if (ok) return true;
+    }
+    for (i = 0; i < parts.length; i++) if (parts[i] === g) return true;
+    for (w = 2; w <= 4; w++) for (i = 0; i + w <= parts.length; i++) if (parts.slice(i, i + w).join("") === g) return true;
+    return false;
+  }
+  function word(h, q) { return hasPhrase(String(h).trim(), q); }
+  LK.word = word; LK.hasPhrase = hasPhrase;
+  function famOf(s) { return FAM[key(s)] || FAM[sp(s)] || FAM[LK.norm(s)] || null; }
+  function subOf(s, fam) {
+    var k = key(s), i, fallback = null;
+    for (i = 0; i < SUBS.length; i++) {
+      var o = SUBS[i].o;
+      if (key(o.id) !== k) continue;
+      if (fam && key(o.f) === key(fam)) return o;
+      if (!fallback) fallback = o;
+    }
+    return fam ? null : fallback;
+  }
+  /* defaults for a chosen sub-model; family disambiguates "Family/Model" keys */
+  LK.modelExt = function (sub, fam) {
+    var map = LK.MODEL_EXT || {}, keys = Object.keys(map), i, loose = null, specific = [];
+    for (i = 0; i < keys.length; i++) {
+      var parts = keys[i].split("/"), ms = parts.length > 1 ? parts[1] : parts[0], fs = parts.length > 1 ? parts[0] : "";
+      if (key(ms) !== key(sub)) continue;
+      if (fs) specific.push({ f: fs, v: map[keys[i]] }); else loose = map[keys[i]];
+    }
+    if (fam) for (i = 0; i < specific.length; i++) if (key(specific[i].f) === key(fam)) return specific[i].v;
+    return loose || (specific.length === 1 ? specific[0].v : null);
+  };
   var NAME_RE = /^(.+?)_(.+)_([^_]+)_(\d{4}-\d\d-\d\d_\d{4})(\.[^.]+)?$/; // ESC_tool: <Family>_<SubModel>_<Dossier>_<stamp>.<ext>
   var INFO_RE = /^(.+?)_(.+)_([^_]+)_info\.pdf$/i;
 
@@ -59,21 +95,27 @@
     var named = c >= 0;
     if (!named && dirs >= 3) c = 0; // no projecten-like folder: the top-level folder plays that role
     if (c >= 0 && dirs >= c + 2 && (named || dirs >= c + 3)) {
-      r.family = FAM[LK.norm(seg[c + 1])] || seg[c + 1];
-      if (dirs >= c + 3) r.dossier = seg[c + 2];
+      r.family = famOf(seg[c + 1]) || seg[c + 1];
+      if (dirs >= c + 3) {
+        var subFolder = subOf(seg[c + 2], r.family) || (!r.family ? subOf(seg[c + 2]) : null);
+        if (subFolder) {
+          r.submodel = subFolder.id; if (!famOf(seg[c + 1])) r.family = subFolder.f;
+          else r.family = famOf(seg[c + 1]) || r.family;
+          if (dirs >= c + 4) r.dossier = seg[c + 3];
+        } else r.dossier = seg[c + 2];
+      }
     }
     m = NAME_RE.exec(name) || INFO_RE.exec(name);
-    if (m && (FAM[LK.norm(m[1])] || (r.family && LK.norm(r.family) === LK.norm(m[1])))) {
-      r.family = FAM[LK.norm(m[1])] || r.family;
-      r.submodel = (SUB[LK.norm(m[2])] || {}).id || m[2];
+    if (m && (famOf(m[1]) || (r.family && key(r.family) === key(m[1])))) {
+      r.family = famOf(m[1]) || r.family;
+      r.submodel = (subOf(m[2], r.family) || subOf(m[2]) || {}).id || m[2];
       if (!r.dossier) r.dossier = m[3];
     }
-    if (!r.family) for (i = 0; i < dirs; i++) if (FAM[LK.norm(seg[i])]) { r.family = FAM[LK.norm(seg[i])]; break; }
-    if (!r.submodel) { // any known sub-model id as whole words in the path ("ES 200", "ES_200", "es200")
-      var h = " " + sp(path) + " ";
+    if (!r.family) for (i = 0; i < dirs; i++) if (famOf(seg[i])) { r.family = famOf(seg[i]); break; }
+    if (!r.submodel) { // known sub-model as whole words ("ES 200", "ES_200", "es200", "TPB M04")
       for (i = 0; i < SUBS.length; i++) {
         var x = SUBS[i];
-        if ((h.indexOf(x.k) >= 0 || h.indexOf(x.g) >= 0) && (!r.family || x.o.f === r.family)) { r.submodel = x.o.id; if (!r.family) r.family = x.o.f; break; }
+        if (hasPhrase(path, x.o.id) && (!r.family || key(x.o.f) === key(r.family))) { r.submodel = x.o.id; if (!r.family) r.family = x.o.f; break; }
       }
     }
     return r;
@@ -144,17 +186,17 @@
     return n.split(/[\s,;]+/).filter(Boolean).map(function (x) { return x.charAt(0) === "." ? x : "." + x; });
   };
 
-  /* q = {family, submodel, dossier, customer, type}; indexes = [index]; returns entries (with .share) newest first */
+  /* q = {family, submodel, dossier, customer, type|exts}; indexes = [index]; returns entries (with .share) newest first.
+     exts null/omitted = every extension. Family and sub-model ignore case, spaces, dashes and underscores. */
   LK.search = function (indexes, q) {
-    var fam = LK.norm(q.family).trim(), sub = LK.norm(q.submodel).trim(), dos = LK.norm(q.dossier).trim(),
-      terms = LK.terms(q.customer), exts = LK.typeExts(q.type || ""), out = [];
+    var fam = q.family || "", sub = q.submodel || "", dos = LK.norm(q.dossier).trim(),
+      terms = LK.terms(q.customer), exts = q.exts != null ? q.exts : LK.typeExts(q.type || ""), out = [];
     indexes.forEach(function (ix) {
       ix.entries.forEach(function (e) {
         if (exts && exts.indexOf((e.ext || LK.ext(e.name)).toLowerCase()) < 0) return;
         var hay = e._h || (e._h = LK.norm(e.path)), hayGlued = e._g || (e._g = hay.replace(/[\s_\-]+/g, ""));
-        var hs = e._s || (e._s = " " + sp(e.path) + " ");
-        if (fam && sp(e.family) !== sp(fam) && !word(hs, fam)) return;
-        if (sub && sp(e.submodel) !== sp(sub) && !word(hs, sub)) return;
+        if (fam && key(e.family) !== key(fam) && !hasPhrase(e.path, fam)) return;
+        if (sub && key(e.submodel) !== key(sub) && !hasPhrase(e.path, sub)) return;
         if (dos && LK.norm(e.dossier).indexOf(dos) < 0 && hay.indexOf(dos) < 0) return;
         for (var i = 0; i < terms.length; i++) if (!terms[i].some(function (v) { return hay.indexOf(v) >= 0 || hayGlued.indexOf(v) >= 0; })) return;
         out.push(Object.assign({ share: ix.share }, e));

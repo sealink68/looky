@@ -574,4 +574,16 @@ LK.GROUPS = [{"id": "sliding", "nl": "Schuifdeuren", "fr": "Portes coulissantes"
   Object.keys(DK).forEach(function (f) { if (!LK.MODELS[f]) LK.MODELS[f] = DK[f]; });
 })();
 /* family -> group id (families not listed here, e.g. learned from an index, go to 'other') */
-LK.FAMILY_GROUP = {"Kerberos": "access", "Kentaur": "access", "Charon": "access", "Argus": "access", "Geryon": "access", "Orthos": "access", "CRP": "access", "PGB": "access", "ES PROLINE": "sliding", "ES 200": "sliding", "ES 400": "sliding", "CS 80 MAGNEO": "sliding", "ST": "sliding", "TST": "sliding", "SST": "sliding", "BST": "sliding", "Hermetische schuifdeuren": "sliding", "ESA": "sliding", "ED": "swing", "PORTEO": "swing", "EasyAssist": "swing", "KTV": "revolving", "KTC": "revolving", "KT FLEX": "revolving", "Crane": "revolving", "TS": "closer", "ITS": "closer", "RTS": "closer", "BTS": "floor", "HSW": "other", "MotionIQ": "other"};
+LK.FAMILY_GROUP = {"Kerberos": "access", "Kentaur": "access", "Charon": "access", "Argus": "access", "Geryon": "access", "Orthos": "access", "CRP": "access", "PGB": "access", "Gallenschütz": "access", "ES PROLINE": "sliding", "ES 200": "sliding", "ES 400": "sliding", "CS 80 MAGNEO": "sliding", "ST": "sliding", "TST": "sliding", "SST": "sliding", "BST": "sliding", "Hermetische schuifdeuren": "sliding", "ESA": "sliding", "ED": "swing", "PORTEO": "swing", "EasyAssist": "swing", "KTV": "revolving", "KTC": "revolving", "KT FLEX": "revolving", "Crane": "revolving", "TS": "closer", "ITS": "closer", "RTS": "closer", "BTS": "floor", "HSW": "other", "MotionIQ": "other"};
+/* Gallenschütz / Kerberos names seen on ESC_Share and ESA_Share. Matched like the lists above; not a replacement of ESC_tool ids. */
+(function () {
+  function add(fam, ids) {
+    if (!LK.MODELS[fam]) LK.MODELS[fam] = [];
+    ids.forEach(function (id) {
+      if (!LK.MODELS[fam].some(function (m) { return m.id === id; })) LK.MODELS[fam].push({ id: id });
+    });
+  }
+  var extra = ["ETS20", "ETS21", "ETS22", "Pavis", "Intenta2000", "SaniRoute", "Easy Entrance", "Flap Control Center"];
+  add("Kerberos", extra);
+  add("Gallenschütz", extra.concat(["TPB-M04", "PIL-M02"]));
+})();
