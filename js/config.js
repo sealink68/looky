@@ -15,7 +15,8 @@ LK.CFG = {
     "ESA_Share": "https://dorma-my.sharepoint.com/personal/joachim_lust_dormakaba_com/Documents/ESA_Share"
   },
   MAX_RESULTS: 300,
-  SKIP: /^(~\$|\.|desktop\.ini$|thumbs\.db$)/i
+  /* hidden, Office locks, OneDrive sync temps, and Windows junk — not real share files */
+  SKIP: /^(?:~\$|\.|desktop\.ini$|thumbs\.db$)|(?:\.tmp(?:\.drivedownload|\.driveupload)?$)/i
 };
 LK.EXT = {
   param: [".xml", ".prd", ".dat", ".kmc", ".eep", ".mot"],
@@ -54,7 +55,8 @@ LK.T = {
     idxH: "Indexen", idxNone: "Nog geen index geladen. PC: ‘Index bijwerken’. iPhone/iPad: ‘Index laden’ en kies looky-index.json in de share (Bestanden → OneDrive).",
     idxUpdate: "🔄 Index bijwerken", idxLoad: "📂 Index laden (looky-index.json)", idxRenew: "🔓 Toegang toestaan: {s}",
     idxInfo: "{s}: {n} bestanden – index van {d}", idxUse: "Gebruiken", idxDel: "Verwijderen",
-    idxBusy: "Bezig met scannen… {n} bestanden", idxDone: "Index geschreven: {s}\\{f} ({n} bestanden).",
+    idxBusy: "Bezig met scannen… {n} bestanden", idxDone: "Index geschreven: {s}\\{f}. {n} bestanden geïndexeerd, {k} overgeslagen.",
+    idxSum: "{n} bestanden geïndexeerd, {k} overgeslagen.",
     idxWriteErr: "Index gemaakt maar niet kunnen schrijven: {e}", idxErr: "Fout: {e}", idxBad: "Dit is geen geldig looky-index.json-bestand.",
     idxLoaded: "Index geladen: {s} ({n} bestanden, {d}).", idxOld: "Let op: index ouder dan 30 dagen.",
     noFs: "Index bijwerken kan enkel op een PC in Google Chrome of Edge.",
@@ -74,6 +76,7 @@ LK.T = {
       "1. Open Looky in Chrome op een PC met OneDrive (ESC_Share/ESA_Share ‘Altijd op dit apparaat behouden’).",
       "2. Klik ‘Index bijwerken’ en kies de hoofdmap van de share. Looky onthoudt de map; na herstart volstaat één klik op ‘Toegang toestaan’.",
       "3. Looky schrijft looky-index.json in de hoofdmap; OneDrive verspreidt het naar iedereen. Iedereen met een PC mag de index bijwerken.",
+      "• Tijdelijke OneDrive-bestanden (.tmp, .tmp.drivedownload, .tmp.driveupload, ~$) en bestanden die tijdens het synchroniseren verdwijnen, worden overgeslagen. De index wordt toch geschreven.",
       "4. Op de PC kan je resultaten rechtstreeks openen of downloaden.",
       "• ‘Openen in OneDrive’ (alle toestellen) opent het bestand in de browser/OneDrive-app; dit vraagt internet en toegang tot de gedeelde map.",
       "## iPhone / iPad",
@@ -90,7 +93,8 @@ LK.T = {
     idxH: "Index", idxNone: "Aucun index chargé. PC : « Mettre à jour l'index ». iPhone/iPad : « Charger l'index » et choisissez looky-index.json dans le partage (Fichiers → OneDrive).",
     idxUpdate: "🔄 Mettre à jour l'index", idxLoad: "📂 Charger l'index (looky-index.json)", idxRenew: "🔓 Autoriser l'accès : {s}",
     idxInfo: "{s} : {n} fichiers – index du {d}", idxUse: "Utiliser", idxDel: "Supprimer",
-    idxBusy: "Analyse en cours… {n} fichiers", idxDone: "Index écrit : {s}\\{f} ({n} fichiers).",
+    idxBusy: "Analyse en cours… {n} fichiers", idxDone: "Index écrit : {s}\\{f}. {n} fichiers indexés, {k} ignorés.",
+    idxSum: "{n} fichiers indexés, {k} ignorés.",
     idxWriteErr: "Index créé mais impossible de l'écrire : {e}", idxErr: "Erreur : {e}", idxBad: "Ce n'est pas un fichier looky-index.json valide.",
     idxLoaded: "Index chargé : {s} ({n} fichiers, {d}).", idxOld: "Attention : index de plus de 30 jours.",
     noFs: "La mise à jour de l'index n'est possible que sur PC dans Google Chrome ou Edge.",
@@ -110,6 +114,7 @@ LK.T = {
       "1. Ouvrez Looky dans Chrome sur un PC avec OneDrive (ESC_Share/ESA_Share « Toujours conserver sur cet appareil »).",
       "2. Cliquez « Mettre à jour l'index » et choisissez le dossier racine du partage. Looky retient le dossier ; après redémarrage, un clic sur « Autoriser l'accès » suffit.",
       "3. Looky écrit looky-index.json à la racine ; OneDrive le diffuse à tous. Toute personne avec un PC peut mettre l'index à jour.",
+      "• Les fichiers temporaires OneDrive (.tmp, .tmp.drivedownload, .tmp.driveupload, ~$) et ceux qui disparaissent pendant la synchronisation sont ignorés. L'index est quand même écrit.",
       "4. Sur PC, vous pouvez ouvrir ou télécharger les résultats directement.",
       "• « Ouvrir dans OneDrive » (tous les appareils) ouvre le fichier dans le navigateur/l'app OneDrive ; il faut internet et l'accès au dossier partagé.",
       "## iPhone / iPad",

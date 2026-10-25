@@ -71,8 +71,9 @@
       HANDLES[h.name] = h; await LK.hSet(h.name, h);
       msg(t("idxBusy", { n: 0 }));
       var ix = await LK.scan(h, function (n) { msg(t("idxBusy", { n: n })); });
-      try { await LK.writeIndex(h, ix); msg(t("idxDone", { s: h.name, f: C.INDEX, n: ix.count })); }
-      catch (e) { msg(t("idxWriteErr", { e: e.message || e }), true); }
+      var sum = { s: h.name, f: C.INDEX, n: ix.count, k: ix.skipped || 0 };
+      try { await LK.writeIndex(h, ix); msg(t("idxDone", sum)); }
+      catch (e) { msg(t("idxWriteErr", { e: e.message || e }) + " " + t("idxSum", sum), true); }
       await store(ix);
     } catch (e) { if (e && e.name === "AbortError") return; msg(t("idxErr", { e: (e && e.message) || e }), true); }
   }

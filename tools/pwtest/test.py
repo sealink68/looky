@@ -17,7 +17,10 @@ TREE = {"ESC_Share": {
                            "Kentaur_FTS-E01_D12345_info.pdf": [2000, 200], "Schuifdeur handleiding Janssens.PDF": [5000, 50]}},
     "Kerberos": {"D777": {"Kerberos_TPB-E01_D777_2026-02-01_1200.dat": [7, 20], "Klant Dupont – Motor schéma.vsdx": [900, 10]}},
     "ESC-param": {}},
-  "Algemeen": {"Firmware": {"ctrl_v2.mot": [100, 5], "readme.txt": [3, 1000]}, "~$lock.docx": [1, 1], "Thumbs.db": [1, 1]},
+  "Algemeen": {"Firmware": {"ctrl_v2.mot": [100, 5], "readme.txt": [3, 1000]}, "~$lock.docx": [1, 1], "Thumbs.db": [1, 1],
+               "notes.tmp": [1, 1], "upload.bin.tmp.driveupload": [2, 1], "download.bin.tmp.drivedownload": [2, 1], "desktop.ini": [1, 1],
+               "vanished.pdf": [4, 10, "NotFoundError"], "locked.docx": [4, 10, "NotReadableError"], "denied.xlsx": [4, 10, "NotAllowedError"]},
+  "gone-dir": {"__throw": "NotFoundError"},
   "looky-index.json": [5, 9999]}}
 ESA = {"app": "looky", "version": 1, "share": "ESA_Share", "generated": "2026-10-20T08:00:00Z", "count": 3, "entries": [
   {"path": "Klanten/Peeters/Porte coulissante manuel.pdf", "name": "Porte coulissante manuel.pdf", "ext": ".pdf", "size": 1000, "lastModified": 1790000000000},
@@ -49,6 +52,8 @@ with sync_playwright() as p:
     paths = {e["path"]: e for e in written["entries"]}
     ok("pc: index share name + date + count", written["share"] == "ESC_Share" and written["generated"][:4] == "2026" and written["count"] == 8)
     ok("pc: skips ~$, Thumbs.db, old index", not any("~$" in x or "Thumbs" in x or x == "looky-index.json" for x in paths))
+    ok("pc: skips OneDrive temps and entries that throw", written["skipped"] == 10 and not any(x.endswith(".tmp") or "drivedownload" in x or "driveupload" in x or x.endswith("desktop.ini") or "vanished.pdf" in x or x.endswith("locked.docx") or "denied.xlsx" in x or "gone-dir" in x for x in paths))
+    ok("pc: summary after a partial scan", "8 bestanden geïndexeerd, 10 overgeslagen" in pg.inner_text("#msg") and "fichiers indexés" in pg.evaluate("LK.T.fr.idxDone") and "ignorés" in pg.evaluate("LK.T.fr.idxSum"))
     e = paths["projecten/Kentaur/D12345/Kentaur_FTS-E01_D12345_2026-01-05_0900.PRD"]
     ok("pc: family/submodel/dossier from ESC_tool name", (e.get("family"), e.get("submodel"), e.get("dossier"), e["ext"]) == ("Kentaur", "FTS-E01", "D12345", ".prd"))
     e = paths["projecten/Kentaur/D12345/Schuifdeur handleiding Janssens.PDF"]
@@ -114,8 +119,8 @@ with sync_playwright() as p:
     pg.evaluate("__root.c.Algemeen.c['nieuw.docx']={kind:'file',name:'nieuw.docx',data:'abc',mt:Date.now(),getFile:__root.c.Algemeen.c.Firmware.c['readme.txt'].getFile}")
     pg.click(".idx .upd"); pg.wait_for_timeout(500)
     ok("pc: renew asks permission + rescans", "request" in pg.evaluate("__log") and "ESC_Share : 9 fichiers" in pg.inner_text("#idxList"))
-    pg.click("#help button") if False else pg.click("#btnHelp"); ok("help FR", "iPhone / iPad" in pg.inner_text("#helpBody") and "Charger l'index" in pg.inner_text("#helpBody"))
-    pg.click("#helpClose"); pg.click("#lang button[data-l=nl]"); pg.click("#btnHelp"); ok("help NL", "Index laden" in pg.inner_text("#helpBody")); pg.click("#helpClose")
+    pg.click("#help button") if False else pg.click("#btnHelp"); ok("help FR", "iPhone / iPad" in pg.inner_text("#helpBody") and "Charger l'index" in pg.inner_text("#helpBody") and "ignorés" in pg.inner_text("#helpBody"))
+    pg.click("#helpClose"); pg.click("#lang button[data-l=nl]"); pg.click("#btnHelp"); ok("help NL", "Index laden" in pg.inner_text("#helpBody") and "overgeslagen" in pg.inner_text("#helpBody")); pg.click("#helpClose")
     pg.screenshot(path="/workspace/looky_pc.png", full_page=True); ctx.close()
     tmp = tempfile.mkdtemp(); f1 = os.path.join(tmp, "looky-index.json"); f2 = os.path.join(tmp, "esa", "looky-index.json"); os.makedirs(os.path.dirname(f2))
     json.dump(written, open(f1, "w")); json.dump(ESA, open(f2, "w")); bad = os.path.join(tmp, "bad.json"); open(bad, "w").write("{\"x\":1}")

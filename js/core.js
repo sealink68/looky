@@ -79,25 +79,47 @@
     return r;
   };
 
-  /* recursive scan of a directory handle -> index object */
+  /* OneDrive moves files while a 7 GB share is syncing; those calls reject and must not abort the walk. */
+  function skipErr(e) {
+    var n = e && e.name;
+    return n === "NotFoundError" || n === "NotReadableError" || n === "NotAllowedError" || n === "SecurityError";
+  }
+  function skipName(name) { return !name || C.SKIP.test(name); }
+
+  /* recursive scan of a directory handle -> index object. Missing/locked/temp entries are counted in skipped. */
   LK.scan = async function (root, progress) {
-    var entries = [], n = 0;
+    var entries = [], n = 0, skipped = 0;
     async function walk(dir, pre) {
-      for await (var e of dir.values()) {
-        if (C.SKIP.test(e.name)) continue;
-        var p = pre ? pre + "/" + e.name : e.name;
-        if (e.kind === "directory") { await walk(e, p); continue; }
-        if (!pre && e.name === C.INDEX) continue;
-        var f; try { f = await e.getFile(); } catch (x) { continue; }
-        var o = { path: p, name: e.name, ext: LK.ext(e.name), size: f.size, lastModified: f.lastModified }, d = LK.parse(p);
-        if (d.family) o.family = d.family; if (d.submodel) o.submodel = d.submodel; if (d.dossier) o.dossier = d.dossier;
-        entries.push(o);
-        if (progress && ++n % 200 === 0) progress(n);
+      var it;
+      try { it = dir.values(); }
+      catch (e) { if (skipErr(e)) { skipped++; return; } throw e; }
+      while (true) {
+        var step;
+        try { step = await it.next(); }
+        catch (e) { if (skipErr(e)) { skipped++; return; } throw e; }
+        if (step.done) return;
+        var ent = step.value;
+        try {
+          if (!ent || skipName(ent.name)) { skipped++; continue; }
+          var p = pre ? pre + "/" + ent.name : ent.name;
+          if (ent.kind === "directory") { await walk(ent, p); continue; }
+          if (!pre && ent.name === C.INDEX) continue; // rewritten below; not a skipped user file
+          var f = null;
+          if (typeof ent.getFile === "function") {
+            try { f = await ent.getFile(); }
+            catch (e) { if (skipErr(e)) { skipped++; continue; } throw e; }
+          }
+          if (!f) { skipped++; continue; }
+          var o = { path: p, name: ent.name, ext: LK.ext(ent.name), size: f.size, lastModified: f.lastModified }, d = LK.parse(p);
+          if (d.family) o.family = d.family; if (d.submodel) o.submodel = d.submodel; if (d.dossier) o.dossier = d.dossier;
+          entries.push(o);
+          if (progress && ++n % 200 === 0) progress(n);
+        } catch (e) { if (skipErr(e)) { skipped++; continue; } throw e; }
       }
     }
     await walk(root, "");
     entries.sort(function (a, b) { return b.lastModified - a.lastModified; });
-    return { app: "looky", version: 1, share: root.name, generated: new Date().toISOString(), count: entries.length, entries: entries };
+    return { app: "looky", version: 1, share: root.name, generated: new Date().toISOString(), count: entries.length, skipped: skipped, entries: entries };
   };
   LK.writeIndex = async function (root, idx) {
     var fh = await root.getFileHandle(C.INDEX, { create: true }), w = await fh.createWritable();
