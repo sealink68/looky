@@ -105,6 +105,14 @@
   };
   LK.validIndex = function (o) { return o && o.app === "looky" && Array.isArray(o.entries) && typeof o.share === "string"; };
 
+  /* OneDrive web link: base of the share + each path segment encodeURIComponent'd; null when the share is unknown */
+  LK.oneDriveUrl = function (share, path) {
+    var k = function (x) { return LK.norm(x).replace(/[\s_\-]+/g, "_"); }, m = C.ONEDRIVE || {}, base = null;
+    Object.keys(m).forEach(function (s) { if (k(s) === k(share)) base = m[s]; });
+    if (!base || !path) return null;
+    return base.replace(/\/+$/, "") + "/" + String(path).split("/").filter(Boolean).map(encodeURIComponent).join("/");
+  };
+
   /* file-type filter text -> list of extensions or null (= all) */
   LK.typeExts = function (v) {
     var n = LK.norm(v).trim(), T = LK.T;

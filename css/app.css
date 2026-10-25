@@ -12,6 +12,7 @@ main { max-width: 1000px; margin: 0 auto; padding: .8rem; }
 h2 { margin: 0 0 .4rem; font-size: 1.1rem; }
 button { font: inherit; background: var(--p); color: #fff; border: 0; border-radius: 8px; padding: .55rem .9rem; cursor: pointer; min-height: 44px; }
 button.sec, button.sm { background: #eef0fb; color: var(--p); } button.sm { min-height: 36px; padding: .3rem .6rem; font-size: .9rem; }
+a.sm { display: inline-flex; align-items: center; min-height: 36px; padding: .3rem .6rem; font-size: .9rem; background: #eef0fb; color: var(--p); border-radius: 8px; text-decoration: none; font-weight: 600; }
 .row { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .6rem; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .6rem; }
 label > span { display: block; font-size: .85rem; color: var(--mut); margin-bottom: .2rem; }

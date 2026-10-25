@@ -153,6 +153,8 @@
         a.appendChild(btn(t("open"), "open", function () { openFile(e, false); }));
         a.appendChild(btn(t("download"), "dl", function () { openFile(e, true); }));
       }
+      var od = LK.oneDriveUrl(e.share, e.path);
+      if (od) { var l = document.createElement("a"); l.className = "sm od"; l.href = od; l.target = "_blank"; l.rel = "noopener"; l.textContent = t("onedrive"); a.appendChild(l); }
       a.appendChild(btn(t("copy"), "cp", function (b) { copy(e.share + "/" + e.path, b); }));
       res.appendChild(li);
     });

@@ -8,6 +8,12 @@ LK.CFG = {
   SUBDIR: "projecten",               // ESC_tool working folder: projecten/<Family>/<Dossier>/
   CONTAINERS: ["projecten", "projects", "projets", "projekte", "dossiers"], // normalised; "projecten-like" folders
   SHARES: ["ESC_Share", "ESA_Share"],
+  /* OneDrive web folders of the shares (owner's OneDrive, shared with technicians); key = index 'share' name,
+     matched case-insensitive and tolerant of "-"/" "/"_" (ESC-Share = ESC_Share). Unknown share -> no OneDrive button. */
+  ONEDRIVE: {
+    "ESC_Share": "https://dorma-my.sharepoint.com/personal/joachim_lust_dormakaba_com/Documents/ESC_Share",
+    "ESA_Share": "https://dorma-my.sharepoint.com/personal/joachim_lust_dormakaba_com/Documents/ESA_Share"
+  },
   MAX_RESULTS: 300,
   SKIP: /^(~\$|\.|desktop\.ini$|thumbs\.db$)/i
 };
@@ -56,7 +62,7 @@ LK.T = {
     phFamily: "kies of typ…", phSub: "kies of typ…", phDossier: "bv. 12345", phCustomer: "bv. klantnaam, deur, handleiding…", phType: "kies of typ bv. pdf",
     tAll: "Alle", tParam: "Parameter/Firmware", tOffice: "Office",
     search: "Zoeken", clear: "Wissen", results: "{n} resultaten", resultsMax: "{n} resultaten (eerste {m} getoond)", noRes: "Geen resultaten.",
-    open: "Openen", download: "Downloaden", copy: "Pad kopiëren", copied: "Gekopieerd!", needPc: "Openen: zoek dit pad in de OneDrive-app.",
+    open: "Openen", download: "Downloaden", copy: "Pad kopiëren", onedrive: "Openen in OneDrive", copied: "Gekopieerd!", needPc: "Openen: zoek dit pad in de OneDrive-app.",
     notFound: "Bestand niet gevonden (index verouderd?).",
     helpTxt: [
       "## Zoeken",
@@ -69,6 +75,7 @@ LK.T = {
       "2. Klik ‘Index bijwerken’ en kies de hoofdmap van de share. Looky onthoudt de map; na herstart volstaat één klik op ‘Toegang toestaan’.",
       "3. Looky schrijft looky-index.json in de hoofdmap; OneDrive verspreidt het naar iedereen. Iedereen met een PC mag de index bijwerken.",
       "4. Op de PC kan je resultaten rechtstreeks openen of downloaden.",
+      "• ‘Openen in OneDrive’ (alle toestellen) opent het bestand in de browser/OneDrive-app; dit vraagt internet en toegang tot de gedeelde map.",
       "## iPhone / iPad",
       "1. Zorg dat de OneDrive-app geïnstalleerd is en de share zichtbaar is in Bestanden.",
       "2. Tik ‘Index laden’ en kies looky-index.json in de hoofdmap van ESC_Share en/of ESA_Share.",
@@ -91,7 +98,7 @@ LK.T = {
     phFamily: "choisir ou taper…", phSub: "choisir ou taper…", phDossier: "p. ex. 12345", phCustomer: "p. ex. nom du client, porte, manuel…", phType: "choisir ou taper p. ex. pdf",
     tAll: "Tous", tParam: "Paramètre/Firmware", tOffice: "Office",
     search: "Rechercher", clear: "Effacer", results: "{n} résultats", resultsMax: "{n} résultats ({m} premiers affichés)", noRes: "Aucun résultat.",
-    open: "Ouvrir", download: "Télécharger", copy: "Copier le chemin", copied: "Copié !", needPc: "Ouvrir : cherchez ce chemin dans l'app OneDrive.",
+    open: "Ouvrir", download: "Télécharger", copy: "Copier le chemin", onedrive: "Ouvrir dans OneDrive", copied: "Copié !", needPc: "Ouvrir : cherchez ce chemin dans l'app OneDrive.",
     notFound: "Fichier introuvable (index périmé ?).",
     helpTxt: [
       "## Rechercher",
@@ -104,6 +111,7 @@ LK.T = {
       "2. Cliquez « Mettre à jour l'index » et choisissez le dossier racine du partage. Looky retient le dossier ; après redémarrage, un clic sur « Autoriser l'accès » suffit.",
       "3. Looky écrit looky-index.json à la racine ; OneDrive le diffuse à tous. Toute personne avec un PC peut mettre l'index à jour.",
       "4. Sur PC, vous pouvez ouvrir ou télécharger les résultats directement.",
+      "• « Ouvrir dans OneDrive » (tous les appareils) ouvre le fichier dans le navigateur/l'app OneDrive ; il faut internet et l'accès au dossier partagé.",
       "## iPhone / iPad",
       "1. Installez l'app OneDrive ; le partage doit être visible dans Fichiers.",
       "2. Touchez « Charger l'index » et choisissez looky-index.json à la racine d'ESC_Share et/ou d'ESA_Share.",
