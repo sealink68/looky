@@ -139,19 +139,44 @@
     if (!on.length || on.length === all.length) return null;
     return on;
   }
-  function syncQuick() {
-    var on = [], all = allExts();
-    document.querySelectorAll("#extBoxes input").forEach(function (b) { if (b.checked) on.push(b.value); });
-    function same(list) { return list.length === on.length && list.every(function (x) { return on.indexOf(x) >= 0; }); }
-    $("extAll").setAttribute("aria-pressed", String(on.length === all.length));
-    $("extParam").setAttribute("aria-pressed", String(same(LK.EXT.param)));
-    $("extOffice").setAttribute("aria-pressed", String(same(LK.EXT.office)));
+  var extPanel = null; // null hides the ticks; "param" or "office" shows that group
+  function reveal(which) {
+    extPanel = which;
+    document.querySelectorAll("#extBoxes label").forEach(function (lab) {
+      var v = lab.querySelector("input").value;
+      var show = which === "param" ? LK.EXT.param.indexOf(v) >= 0 : which === "office" ? LK.EXT.office.indexOf(v) >= 0 : false;
+      lab.hidden = !show;
+    });
+    $("extBoxes").hidden = !which;
+    $("extParam").setAttribute("aria-expanded", String(which === "param"));
+    $("extOffice").setAttribute("aria-expanded", String(which === "office"));
   }
-  function setExts(list) {
-    // null = tick every extension (Alle). An array ticks exactly those (empty = none = all types).
-    var allow = list ? list.map(function (x) { return x.toLowerCase(); }) : null;
-    document.querySelectorAll("#extBoxes input").forEach(function (b) { b.checked = list === null || (allow && allow.indexOf(b.value) >= 0); });
+  function syncQuick() {
+    var on = [];
+    document.querySelectorAll("#extBoxes input").forEach(function (b) { if (b.checked) on.push(b.value); });
+    $("extAll").setAttribute("aria-pressed", String(!on.length && !extPanel));
+    $("extParam").setAttribute("aria-pressed", String(extPanel === "param"));
+    $("extOffice").setAttribute("aria-pressed", String(extPanel === "office"));
+  }
+  function panelFor(list) {
+    var param = list.every(function (x) { return LK.EXT.param.indexOf(x) >= 0; });
+    var office = list.every(function (x) { return LK.EXT.office.indexOf(x) >= 0; });
+    if (param && !office) return "param";
+    if (office && !param) return "office";
+    return "param";
+  }
+  function setExts(list, panel) {
+    // An array ticks exactly those extensions. Empty = no ticks = all types.
+    var allow = (list || []).map(function (x) { return x.toLowerCase(); });
+    document.querySelectorAll("#extBoxes input").forEach(function (b) { b.checked = allow.indexOf(b.value) >= 0; });
+    if (panel !== undefined) reveal(panel);
     syncQuick();
+  }
+  function toggleGroup(which, list) {
+    extAuto = false;
+    if (extPanel === which) setExts([], null);
+    else setExts(list, which);
+    run();
   }
   function buildExt() {
     var box = $("extBoxes"); box.innerHTML = "";
@@ -162,14 +187,14 @@
       lab.appendChild(cb); lab.appendChild(document.createTextNode(x));
       box.appendChild(lab);
     });
-    syncQuick();
+    reveal(null);
   }
   var extAuto = false, timer = 0;
   function later() { clearTimeout(timer); timer = setTimeout(run, 150); }
   function onQuery() {
     var exts = LK.modelExtFromQuery($("q").value);
-    if (exts) { setExts(exts); extAuto = true; }
-    else if (extAuto) { setExts([]); extAuto = false; }
+    if (exts) { setExts(exts, panelFor(exts)); extAuto = true; }
+    else if (extAuto) { setExts([], null); extAuto = false; }
     later();
   }
   function q() { return { text: $("q").value, exts: selectedExts() }; }
@@ -226,11 +251,11 @@
     $("btnHelp").addEventListener("click", function () { $("help").hidden = false; });
     $("helpClose").addEventListener("click", function () { $("help").hidden = true; });
     buildExt();
-    $("clear").addEventListener("click", function () { $("q").value = ""; extAuto = false; setExts([]); run(); });
+    $("clear").addEventListener("click", function () { $("q").value = ""; extAuto = false; setExts([], null); run(); });
     $("f").addEventListener("submit", function (e) { e.preventDefault(); document.activeElement && document.activeElement.blur(); run(); });
-    $("extAll").addEventListener("click", function () { extAuto = false; setExts(null); run(); });
-    $("extParam").addEventListener("click", function () { extAuto = false; setExts(LK.EXT.param); run(); });
-    $("extOffice").addEventListener("click", function () { extAuto = false; setExts(LK.EXT.office); run(); });
+    $("extAll").addEventListener("click", function () { extAuto = false; setExts([], null); run(); });
+    $("extParam").addEventListener("click", function () { toggleGroup("param", LK.EXT.param); });
+    $("extOffice").addEventListener("click", function () { toggleGroup("office", LK.EXT.office); });
     LK.combo($("q"), suggestItems, function () { onQuery(); });
     function net() { $("off").hidden = navigator.onLine; }
     window.addEventListener("online", net); window.addEventListener("offline", net); net();

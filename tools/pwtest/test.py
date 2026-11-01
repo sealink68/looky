@@ -37,10 +37,19 @@ NOFS = "delete window.showDirectoryPicker; window.open=function(){};"
 def names(pg): return pg.eval_on_selector_all("#res .rn", "e=>e.map(x=>x.textContent)")
 def set_exts(pg, ft):
     if ft in ("Alle", "Tous", "all", "", None): pg.click("#extAll"); return
-    if ft in ("Parameter/Firmware", "param"): pg.click("#extParam"); return
-    if ft == "Office": pg.click("#extOffice"); return
+    if ft in ("Parameter/Firmware", "param"):
+        if pg.get_attribute("#extParam", "aria-expanded") != "true": pg.click("#extParam")
+        return
+    if ft == "Office":
+        if pg.get_attribute("#extOffice", "aria-expanded") != "true": pg.click("#extOffice")
+        return
     want = [("." + x if not str(x).startswith(".") else x) for x in str(ft).replace(" ", "").split(",") if x]
-    for b in pg.query_selector_all("#extBoxes input"):
+    param = {".xml", ".prd", ".dat", ".kmc", ".eep", ".mot"}
+    if any(w in param for w in want):
+        if pg.get_attribute("#extParam", "aria-expanded") != "true": pg.click("#extParam")
+    elif pg.get_attribute("#extOffice", "aria-expanded") != "true":
+        pg.click("#extOffice")
+    for b in pg.query_selector_all("#extBoxes label:not([hidden]) input"):
         if b.is_checked() != (b.get_attribute("value") in want): b.click()
 def setq(pg, **kw):
     if "q" in kw: text = kw["q"]
@@ -98,7 +107,13 @@ with sync_playwright() as p:
         && LK.key("ES-200") === "es200" && LK.modelExt("tpb m04", "kerberos").join() === ".kmc,.eep";
     }"""))
     ok("title: glasses stand in for the o's", pg.get_attribute("h1.looky", "aria-label") == "Looky" and pg.locator("h1 .glasses circle").count() == 2 and "L" in pg.inner_text("h1.looky") and "ky" in pg.inner_text("h1.looky"))
-    ok("pc: extensions off by default", pg.locator("#extBoxes input:checked").count() == 0)
+    ok("pc: extensions off and hidden by default", pg.locator("#extBoxes").is_hidden() and pg.locator("#extBoxes input:checked").count() == 0)
+    pg.click("#extParam")
+    shown = pg.eval_on_selector_all("#extBoxes label:not([hidden]) input", "e=>e.map(x=>x.value)")
+    ticked = pg.eval_on_selector_all("#extBoxes input:checked", "e=>e.map(x=>x.value)")
+    ok("pc: Parameter reveals only its extensions, all ticked", pg.locator("#extBoxes").is_visible() and shown == pg.evaluate("() => LK.EXT.param.slice()") and ticked == shown and pg.locator("#extBoxes input[value='.pdf']").is_hidden())
+    pg.click("#extParam")
+    ok("pc: Parameter collapses and clears ticks", pg.locator("#extBoxes").is_hidden() and pg.locator("#extBoxes input:checked").count() == 0)
     ok("pc: all results newest first", names(pg)[:2] == ["readme.txt", "ctrl_v2.mot"][::-1] or names(pg)[0] == "ctrl_v2.mot")
     lm = pg.evaluate("Array.from(document.querySelectorAll('#res .rm')).map(x=>x.textContent)")
     ok("pc: result has date+size", "/2026" in lm[0] and "B" in lm[0])
@@ -128,12 +143,12 @@ with sync_playwright() as p:
     ok("pc: Kerberos models suggested from the index", "TPB-E01" in subs and "TPB-M04" in subs and "FTS-E01" not in subs)
     pg.click("#q ~ .cbl li[data-v='TPB-M04']"); pg.wait_for_timeout(300)
     checked = pg.eval_on_selector_all("#extBoxes input:checked", "e=>e.map(x=>x.value).sort()")
-    ok("pc: TPB-M04 auto-selects .kmc and .eep", checked == [".eep", ".kmc"])
+    ok("pc: TPB-M04 auto-selects .kmc and .eep", checked == [".eep", ".kmc"] and pg.locator("#extBoxes").is_visible() and pg.get_attribute("#extParam", "aria-expanded") == "true" and pg.locator("#extBoxes input[value='.pdf']").is_hidden())
     ok("pc: TPB-M04 lists matching files at once", set(names(pg)) == {"config.kmc", "params.eep"})
     pg.fill("#q", "tpb-m04 d900"); pg.wait_for_timeout(250); ok("pc: dossier narrows TPB-M04 live", set(names(pg)) == {"config.kmc", "params.eep"})
     pg.fill("#q", "tpb-m04 d900 config"); pg.wait_for_timeout(250); ok("pc: klant narrows TPB-M04 live", names(pg) == ["config.kmc"])
-    pg.fill("#q", "tpb-m04 d900"); pg.evaluate("() => { var u = document.querySelector('#q ~ .cbl'); if (u) u.hidden = true; }"); pg.click("#extBoxes input[value='.pdf']"); pg.wait_for_timeout(200)
-    ok("pc: user can add a tick after the model default", ".pdf" in pg.eval_on_selector_all("#extBoxes input:checked", "e=>e.map(x=>x.value)") and "handleiding.pdf" in names(pg) and "config.kmc" in names(pg))
+    pg.fill("#q", "tpb-m04 d900"); pg.evaluate("() => { var u = document.querySelector('#q ~ .cbl'); if (u) u.hidden = true; }"); pg.click("#extBoxes input[value='.xml']"); pg.wait_for_timeout(200)
+    ok("pc: user can add a tick inside the open group", ".xml" in pg.eval_on_selector_all("#extBoxes input:checked", "e=>e.map(x=>x.value)") and "extra.xml" in names(pg) and "config.kmc" in names(pg))
     pg.fill("#q", "tpb m04"); pg.wait_for_timeout(300)
     ok("pc: typed TPB M04 matches TPB-M04 defaults", pg.eval_on_selector_all("#extBoxes input:checked", "e=>e.map(x=>x.value).sort()") == [".eep", ".kmc"])
     pg.fill("#q", "kentaur"); pg.evaluate("() => { var u = document.querySelector('#q ~ .cbl'); if (u) u.hidden = true; }"); pg.click("#extParam"); pg.click("#clear"); pg.wait_for_timeout(200)

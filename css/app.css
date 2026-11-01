@@ -38,7 +38,9 @@ label.q { display: block; margin-top: .8rem; }
 #extQuick { margin-top: .2rem; } #extQuick button { min-height: 40px; }
 #extQuick button[aria-pressed="true"] { background: #312e81; }
 .ticks { display: flex; flex-wrap: wrap; gap: .25rem .7rem; margin-top: .45rem; }
+.ticks[hidden] { display: none; }
 .ticks label { display: inline-flex; align-items: center; gap: .3rem; font-size: .9rem; min-height: 32px; }
+.ticks label[hidden] { display: none; }
 .ticks input { width: 18px; height: 18px; margin: 0; }
 .modal { position: fixed; inset: 0; background: #0006; display: flex; align-items: flex-start; justify-content: center; padding: 1rem; overflow: auto; z-index: 20; }
 .modal[hidden] { display: none; }
