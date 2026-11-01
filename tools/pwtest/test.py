@@ -106,7 +106,7 @@ with sync_playwright() as p:
         && LK.search([ix], {family:"", submodel:"TPB M04", dossier:"", customer:"", exts:[".kmc"]}).length === 1
         && LK.key("ES-200") === "es200" && LK.modelExt("tpb m04", "kerberos").join() === ".kmc,.eep";
     }"""))
-    ok("title: glasses stand in for the o's", pg.get_attribute("h1.looky", "aria-label") == "Looky" and pg.locator("h1 .glasses circle").count() == 2 and "L" in pg.inner_text("h1.looky") and "ky" in pg.inner_text("h1.looky"))
+    ok("title: binoculars stand in for the o's", pg.get_attribute("h1.looky", "aria-label") == "Looky" and pg.locator("h1 .bino").count() == 1 and pg.get_attribute("h1 .bino", "viewBox") == "0 0 220 120" and "L" in pg.inner_text("h1.looky") and "ky" in pg.inner_text("h1.looky"))
     ok("pc: extensions off and hidden by default", pg.locator("#extBoxes").is_hidden() and pg.locator("#extBoxes input:checked").count() == 0)
     pg.click("#extParam")
     shown = pg.eval_on_selector_all("#extBoxes label:not([hidden]) input", "e=>e.map(x=>x.value)")
